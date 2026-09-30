@@ -102,4 +102,26 @@ describe('Client.edit error handling', () => {
     await expect(client.edit({ title: 'Test', text: 'Content' })).rejects.toThrow();
     expect(logger.error).toHaveBeenCalledWith('Failed to validate token');
   });
+
+  test('should refresh an invalid csrf token via #getToken and still complete the edit', async () => {
+    // Success-path counterpart to the test above: here `checktoken.result`
+    // comes back as "invalid" (not missing), which takes the *other* branch
+    // in `#checkToken` - it calls the private `#getToken("csrf")` again and
+    // replaces `this.token` with whatever `query.tokens` contains, then
+    // proceeds to complete the edit using the refreshed token.
+    fetch.mockResolvedValue({
+      ok: true,
+      headers: { raw: () => ({}), get: () => null },
+      json: async () => ({
+        checktoken: { result: 'invalid' },
+        query: { tokens: { csrftoken: 'refreshed-token' } },
+      }),
+    });
+
+    const result = await client.edit({ title: 'Test', text: 'Content' });
+
+    expect(result.query.tokens.csrftoken).toBe('refreshed-token');
+    expect(client.token).toEqual({ csrftoken: 'refreshed-token' });
+    expect(logger.error).not.toHaveBeenCalledWith('Failed to validate token');
+  });
 });
