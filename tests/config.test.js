@@ -74,6 +74,17 @@ describe('config.js', () => {
       );
     });
 
+    test('throws a descriptive error when the config file cannot be read', () => {
+      // A directory exists at this path but cannot be read as a file (EISDIR),
+      // simulating a file-read failure distinct from "file not found".
+      const dirAsFilePath = path.join(tmpDir, 'not-a-file.json');
+      fs.mkdirSync(dirAsFilePath);
+
+      expect(() => loadConfig({ configPath: dirAsFilePath, cwd: tmpDir })).toThrow(
+        /Unable to read config file/
+      );
+    });
+
     test('does not throw when the default config file is simply absent', () => {
       expect(() => loadConfig({ cwd: tmpDir })).not.toThrow();
     });

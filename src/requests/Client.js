@@ -92,18 +92,26 @@ class WikiClient {
     this.userAgent = merged.userAgent || "hamichlol-bot";
     this.#cookieJar = new CookieJar();
 
-    // Resolve credentials, preferring explicit/env values, then the config file's `auth` block.
+    // Resolve credentials using the same precedence rules as other settings
+    // (explicit options > environment variables > config file's `auth` block).
     const fileAuth = fileConfig.auth || {};
-    this.userName =
-      options.userName || process.env.MC_USER || fileAuth.userName || "";
-    this.#password =
-      options.password || process.env.MC_PASSWORD || fileAuth.password || "";
+    const mergedAuth = mergeConfig(
+      { userName: options.userName, password: options.password, oauthToken: options.oauthToken },
+      {
+        userName: process.env.MC_USER || undefined,
+        password: process.env.MC_PASSWORD || undefined,
+        oauthToken: process.env.MC_OAUTH_TOKEN || undefined,
+      },
+      {
+        userName: fileAuth.userName,
+        password: fileAuth.password,
+        oauthToken: fileAuth.type !== "password" ? fileAuth.oauthToken : undefined,
+      }
+    );
 
-    const oauthToken =
-      options.oauthToken ||
-      process.env.MC_OAUTH_TOKEN ||
-      (fileAuth.type !== "password" ? fileAuth.oauthToken : undefined) ||
-      "";
+    this.userName = mergedAuth.userName || "";
+    this.#password = mergedAuth.password || "";
+    const oauthToken = mergedAuth.oauthToken || "";
 
     if (oauthToken) {
       if (this.userName || this.#password) {
