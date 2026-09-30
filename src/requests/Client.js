@@ -103,8 +103,8 @@ class WikiClient {
         oauthToken: process.env.MC_OAUTH_TOKEN || undefined,
       },
       {
-        userName: fileAuth.userName,
-        password: fileAuth.password,
+        userName: fileAuth.type !== "oauth" ? fileAuth.userName : undefined,
+        password: fileAuth.type !== "oauth" ? fileAuth.password : undefined,
         oauthToken: fileAuth.type !== "password" ? fileAuth.oauthToken : undefined,
       }
     );
@@ -385,11 +385,11 @@ class WikiClient {
     if (!checkParams.type) {
       checkParams.type = "csrf";
     }
-    const tokenKey = checkParams.type + "token";
-    if (!this.token || !this.token[tokenKey]) {
-      this.token = await this.#getToken(checkParams.type);
-    }
     if (!checkParams.token) {
+      const tokenKey = checkParams.type + "token";
+      if (!this.token || !this.token[tokenKey]) {
+        this.token = await this.#getToken(checkParams.type);
+      }
       checkParams.token = this.token?.[tokenKey];
     }
 
