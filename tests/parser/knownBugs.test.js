@@ -41,6 +41,13 @@ async function importAndCaptureError(modulePath) {
  * unmodified; these tests only document the current, broken behavior using
  * dynamic `import()` (a static `import` of these modules would crash the
  * whole test file instead of producing a normal, isolated test failure).
+ *
+ * MAINTENANCE: these are "known bug" tests, not "intended behavior" tests.
+ * Once the underlying bugs are actually fixed in src/parser/ (removing the
+ * CommonJS syntax / fixing the bad import path / fixing the bad import
+ * name), the corresponding `import(...)` calls below will start *resolving*
+ * instead of rejecting, and these tests should be deleted (or rewritten to
+ * assert the fixed, real behavior of the module) rather than left in place.
  */
 describe('pre-existing CJS/ESM mismatch bugs in src/parser (documented, not fixed)', () => {
   // Each test below asserts only the version-independent facts that matter

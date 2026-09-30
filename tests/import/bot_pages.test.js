@@ -88,6 +88,15 @@ describe('bot_pages.js - detectTemplateCategory and checkBot functions', () => {
       // category, `foundCategory` ends up holding the *last* matching
       // category in the `templateCategories.json` key order ("tv" here),
       // not the first one encountered ("sport") as might naively be expected.
+      //
+      // MAINTENANCE: this assertion is intentionally coupled to the current
+      // key order of src/import/check/template-categories.json ("sport",
+      // "music", "tv"). That's a deliberate trade-off to pin down the exact,
+      // surprising current behavior of the missing-break bug described
+      // above; if that JSON file's key order is ever reshuffled, or once the
+      // missing-break bug itself is fixed (at which point the first match,
+      // "sport", should win), this test should be updated to match rather
+      // than treated as a spec for the correct/intended behavior.
       test('should return the LAST matching category (not the first) when templates from multiple categories are present', () => {
         const text = 'עמוד על {{אישיות כדורגל}} שהוא גם {{אישיות משחק}}';
         const result = detectTemplateCategory(text);
