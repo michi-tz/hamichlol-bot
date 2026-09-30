@@ -1,0 +1,11 @@
+{
+  "wikiUrl": "https://www.hamichlol.org.il/w/api.php",
+  "maxlag": 5,
+  "maxRetries": 3,
+  "withLogedIn": true,
+  "userAgent": "hamichlol-bot",
+  "auth": {
+    "type": "oauth",
+    "oauthToken": "your-oauth-owner-only-access-token"
+  }
+}

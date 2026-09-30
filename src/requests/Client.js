@@ -3,31 +3,42 @@ import dotenv from "dotenv";
 import { CookieJar } from "tough-cookie";
 dotenv.config();
 import logger from "../logger.js";
+import { loadConfig, mergeConfig } from "../config.js";
 
 /**
  * client for mediawiki wiki api,
  * use only with A user with bot rights,
  * create A sub user with [[Special:BotPasswords]],
  * instruction see in {@link https://www.mediawiki.org/wiki/Manual:Bot_passwords}
+ *
+ * Alternatively, this client supports MediaWiki OAuth 2.0 owner-only consumers
+ * (personal access tokens), see {@link https://www.mediawiki.org/wiki/OAuth/Owner-only_consumers}.
  * @class Client
  */
 class WikiClient {
   wikiUrl;
-  userName = process.env.MC_USER || "";
-  #password = process.env.MC_PASSWORD || "";
-  token = "";
+  userName = "";
+  #password = "";
+  #oauthToken = "";
+  token = {};
   isLoggedIn = false;
   #cookieJar;
 
   /**
    * Creates a MediaWiki API client.
    *
+   * Settings are resolved with the following precedence (highest to lowest):
+   * explicit constructor options > environment variables (`MC_USER`, `MC_PASSWORD`,
+   * `MC_OAUTH_TOKEN`, `MC_CONFIG_PATH`) > config file (see `configPath`) > built-in defaults.
+   *
    * @param {Object} options - Options object for configuration (recommended)
-   * @param {string} options.wikiUrl - The URL of the wiki API (required)
+   * @param {string} [options.wikiUrl] - The URL of the wiki API (required, unless provided via config file)
    * @param {number} [options.maxlag=5] - Maximum lag parameter for MediaWiki API
    * @param {number} [options.maxRetries=3] - Maximum number of retries for failed requests
    * @param {boolean} [options.withLogedIn=true] - Whether to login automatically before requests
    * @param {string} [options.userAgent="hamichlol-bot"] - User agent string for requests
+   * @param {string} [options.oauthToken] - MediaWiki OAuth 2.0 (owner-only consumer) access token. Also readable from `MC_OAUTH_TOKEN`.
+   * @param {string} [options.configPath] - Path to a JSON config file with any of the above settings. Also readable from `MC_CONFIG_PATH`. If omitted, `./hamichlol-bot.config.json` is used when it exists.
    * @param {string} [wikiUrl] -  Passing a string as the first parameter is deprecated. Use an options object instead.
    * @param {number} [maxlag] -  For backward compatibility only.
    * @param {number} [maxRetries] -  For backward compatibility only.
@@ -45,6 +56,12 @@ class WikiClient {
    *   userAgent: "my-bot",
    * });
    *
+   * // OAuth (owner-only consumer) usage:
+   * const client = new WikiClient({
+   *   wikiUrl: "https://www.hamichlol.org.il/w/api.php",
+   *   oauthToken: process.env.MC_OAUTH_TOKEN,
+   * });
+   *
    * // Deprecated usage:
    * const client = new WikiClient("https://www.hamichlol.org.il/w/api.php");
    */
@@ -59,16 +76,55 @@ class WikiClient {
         userAgent,
       };
     }
-    if (!options || !options.wikiUrl) {
+    options = options || {};
+
+    const fileConfig = loadConfig({ configPath: options.configPath });
+    const merged = mergeConfig(options, fileConfig);
+
+    if (!merged.wikiUrl) {
       throw new Error("you didn't pass the url of your wiki");
     }
-    this.wikiUrl = options.wikiUrl;
+    this.wikiUrl = merged.wikiUrl;
     this.isLoggedIn = false;
-    this.withLogedIn = options.withLogedIn !== undefined ? options.withLogedIn : true;
-    this.maxlag = options.maxlag !== undefined ? options.maxlag : 5;
-    this.maxRetries = options.maxRetries !== undefined ? options.maxRetries : 3;
-    this.userAgent = options.userAgent || "hamichlol-bot";
+    this.withLogedIn = merged.withLogedIn !== undefined ? merged.withLogedIn : true;
+    this.maxlag = merged.maxlag !== undefined ? merged.maxlag : 5;
+    this.maxRetries = merged.maxRetries !== undefined ? merged.maxRetries : 3;
+    this.userAgent = merged.userAgent || "hamichlol-bot";
     this.#cookieJar = new CookieJar();
+
+    // Resolve credentials, preferring explicit/env values, then the config file's `auth` block.
+    const fileAuth = fileConfig.auth || {};
+    this.userName =
+      options.userName || process.env.MC_USER || fileAuth.userName || "";
+    this.#password =
+      options.password || process.env.MC_PASSWORD || fileAuth.password || "";
+
+    const oauthToken =
+      options.oauthToken ||
+      process.env.MC_OAUTH_TOKEN ||
+      (fileAuth.type === "oauth" ? fileAuth.oauthToken : undefined) ||
+      "";
+
+    if (oauthToken) {
+      if (this.userName || this.#password) {
+        logger.info(
+          "Both an OAuth token and username/password were provided; using OAuth and ignoring the BotPassword credentials."
+        );
+      }
+      this.setOAuthToken(oauthToken);
+    }
+  }
+
+  /**
+   * Sets (or rotates) the MediaWiki OAuth 2.0 access token used for authentication.
+   * When a token is set, the client is treated as already authenticated and the
+   * BotPassword login flow is skipped.
+   *
+   * @param {string} token - The OAuth access token.
+   */
+  setOAuthToken(token) {
+    this.#oauthToken = token || "";
+    this.isLoggedIn = !!this.#oauthToken;
   }
 
   /**
@@ -95,6 +151,9 @@ class WikiClient {
         headers: {
           "user-agent": this.userAgent || "hamichlol-bot",
           cookie: cookieString,
+          ...(this.#oauthToken
+            ? { Authorization: "Bearer " + this.#oauthToken }
+            : {}),
         },
       };
       if (method === "GET") {
@@ -205,6 +264,11 @@ class WikiClient {
    * @returns {Promise<Boolean>}
    */
   async login(userName, password, assert = "bot") {
+    if (this.#oauthToken) {
+      logger.info("OAuth token is configured; skipping BotPassword login.");
+      this.isLoggedIn = true;
+      return true;
+    }
     if (userName) {
       this.userName = userName;
     }
@@ -245,11 +309,18 @@ class WikiClient {
    * This method sends a logout request to the API using the stored token.
    * It logs the success or failure of the logout operation.
    *
+   * For OAuth-authenticated clients this is a safe no-op, since there is no
+   * server-side session to end.
+   *
    * @async
    * @returns {Promise<void>} A promise that resolves when the logout process is complete.
    * @throws {Error} If there's an error during the logout process, it's caught and logged as a warning.
    */
   async logout() {
+    if (this.#oauthToken) {
+      logger.info("OAuth token is configured; logout() is a no-op.");
+      return;
+    }
     const logOutParams = {
       action: "logout",
       token: this.token,
@@ -281,6 +352,9 @@ class WikiClient {
       const res = await fetch(url, {
         headers: {
           cookie: cookieString || "",
+          ...(this.#oauthToken
+            ? { Authorization: "Bearer " + this.#oauthToken }
+            : {}),
         },
         agent: this.proxyAgent || undefined,
       });
@@ -303,8 +377,12 @@ class WikiClient {
     if (!checkParams.type) {
       checkParams.type = "csrf";
     }
+    const tokenKey = checkParams.type + "token";
+    if (!this.token || !this.token[tokenKey]) {
+      this.token = await this.#getToken(checkParams.type);
+    }
     if (!checkParams.token) {
-      checkParams.token = this.token?.[checkParams.type + "token"] || await this.#getToken(checkParams.type);
+      checkParams.token = this.token?.[tokenKey];
     }
 
     const { checktoken, error } = await this.wikiGet(checkParams);
@@ -312,7 +390,7 @@ class WikiClient {
     if (!checktoken || !checktoken.result) {
       logger.error("Failed to validate token");
     }
-    if (checktoken.result !== "valid") {
+    if (!checktoken || checktoken.result !== "valid") {
       this.token = await this.#getToken(checkParams.type);
     }
 
