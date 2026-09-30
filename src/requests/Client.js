@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import { CookieJar } from "tough-cookie";
 dotenv.config();
 import logger from "../logger.js";
-import { loadConfig, mergeConfig } from "../config.js";
+import { loadConfig, mergeConfig, mergeAuthConfig } from "../config.js";
 
 /**
  * client for mediawiki wiki api,
@@ -94,19 +94,14 @@ class WikiClient {
 
     // Resolve credentials using the same precedence rules as other settings
     // (explicit options > environment variables > config file's `auth` block).
-    const fileAuth = fileConfig.auth || {};
-    const mergedAuth = mergeConfig(
+    const mergedAuth = mergeAuthConfig(
       { userName: options.userName, password: options.password, oauthToken: options.oauthToken },
       {
         userName: process.env.MC_USER || undefined,
         password: process.env.MC_PASSWORD || undefined,
         oauthToken: process.env.MC_OAUTH_TOKEN || undefined,
       },
-      {
-        userName: fileAuth.type !== "oauth" ? fileAuth.userName : undefined,
-        password: fileAuth.type !== "oauth" ? fileAuth.password : undefined,
-        oauthToken: fileAuth.type !== "password" ? fileAuth.oauthToken : undefined,
-      }
+      fileConfig.auth
     );
 
     this.userName = mergedAuth.userName || "";

@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import { loadConfig, mergeConfig } from '../src/config.js';
+import { loadConfig, mergeConfig, mergeAuthConfig } from '../src/config.js';
 
 function makeTempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'hamichlol-bot-config-test-'));
@@ -136,6 +136,19 @@ describe('config.js', () => {
       expect(() => loadConfig({ cwd: tmpDir })).toThrow(/auth.userName.*and.*auth.password.*required/);
     });
 
+    test('throws when both oauthToken and userName/password are set without an explicit auth.type', () => {
+      const filePath = path.join(tmpDir, 'hamichlol-bot.config.json');
+      fs.writeFileSync(
+        filePath,
+        JSON.stringify({
+          wikiUrl: 'https://wiki.example/api.php',
+          auth: { oauthToken: 'tok', userName: 'bot', password: 'secret' },
+        })
+      );
+
+      expect(() => loadConfig({ cwd: tmpDir })).toThrow(/auth.type.*disambiguate/);
+    });
+
     test('loads password-based auth config', () => {
       const filePath = path.join(tmpDir, 'hamichlol-bot.config.json');
       fs.writeFileSync(
@@ -182,6 +195,40 @@ describe('config.js', () => {
     test('ignores null/undefined sources', () => {
       const merged = mergeConfig(undefined, null, { wikiUrl: 'x' });
       expect(merged).toEqual({ wikiUrl: 'x' });
+    });
+  });
+
+  describe('mergeAuthConfig', () => {
+    test('prefers higher precedence credentials', () => {
+      const merged = mergeAuthConfig(
+        { userName: 'from-options', password: 'pw-options' },
+        { userName: 'from-env' },
+        { userName: 'from-file', password: 'pw-file' }
+      );
+      expect(merged).toEqual({ userName: 'from-options', password: 'pw-options' });
+    });
+
+    test('suppresses userName/password from a source declared as type "oauth"', () => {
+      const merged = mergeAuthConfig(
+        {},
+        {},
+        { type: 'oauth', oauthToken: 'tok', userName: 'ignored', password: 'ignored' }
+      );
+      expect(merged).toEqual({ oauthToken: 'tok' });
+    });
+
+    test('suppresses oauthToken from a source declared as type "password"', () => {
+      const merged = mergeAuthConfig(
+        {},
+        {},
+        { type: 'password', userName: 'bot', password: 'secret', oauthToken: 'ignored' }
+      );
+      expect(merged).toEqual({ userName: 'bot', password: 'secret' });
+    });
+
+    test('ignores undefined/null sources', () => {
+      const merged = mergeAuthConfig(undefined, null, { oauthToken: 'tok' });
+      expect(merged).toEqual({ oauthToken: 'tok' });
     });
   });
 });

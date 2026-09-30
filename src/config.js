@@ -146,6 +146,11 @@ function validateConfigShape(config, filePath) {
     if (type === "password" && (!userName || !password)) {
       throw new Error(`Invalid config file "${filePath}": "auth.userName" and "auth.password" are required when "auth.type" is "password"`);
     }
+    if (type === undefined && oauthToken && (userName || password)) {
+      throw new Error(
+        `Invalid config file "${filePath}": "auth" has both "oauthToken" and "userName"/"password" set; specify "auth.type" ("oauth" or "password") to disambiguate`
+      );
+    }
   }
 }
 
@@ -172,4 +177,30 @@ export function mergeConfig(...sources) {
   return result;
 }
 
-export default { loadConfig, mergeConfig };
+/**
+ * Resolves the final `userName`/`password`/`oauthToken` credentials from multiple sources
+ * (e.g. constructor options, environment variables, a config file's `auth` block), following
+ * the same precedence as {@link mergeConfig} (first source wins).
+ *
+ * When a source declares an explicit `type` ("oauth" or "password"), fields that belong to the
+ * *other* auth method are ignored for that source, so an `auth: { type: "oauth", ... }` block
+ * with a stray `userName`/`password` (or vice versa) doesn't leak unexpected credentials.
+ *
+ * @param {...Object} sources - Auth objects ordered from highest to lowest precedence. Each may
+ *   have `type`, `userName`, `password`, and/or `oauthToken`.
+ * @returns {{userName?: string, password?: string, oauthToken?: string}}
+ */
+export function mergeAuthConfig(...sources) {
+  const normalized = sources.map((source) => {
+    if (!source) return source;
+    const { type, userName, password, oauthToken } = source;
+    return {
+      userName: type === "oauth" ? undefined : userName,
+      password: type === "oauth" ? undefined : password,
+      oauthToken: type === "password" ? undefined : oauthToken,
+    };
+  });
+  return mergeConfig(...normalized);
+}
+
+export default { loadConfig, mergeConfig, mergeAuthConfig };
