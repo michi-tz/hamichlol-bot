@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import logger from "./logger.js";
 
 const DEFAULT_CONFIG_FILENAME = "hamichlol-bot.config.json";
 
@@ -48,6 +49,8 @@ function readConfigFile(filePath, { required = true } = {}) {
     return {};
   }
 
+  warnIfConfigFilePermissive(filePath);
+
   let raw;
   try {
     raw = fs.readFileSync(filePath, "utf8");
@@ -69,6 +72,29 @@ function readConfigFile(filePath, { required = true } = {}) {
   validateConfigShape(parsed, filePath);
 
   return parsed;
+}
+
+/**
+ * Since this config file may hold plaintext credentials (OAuth token or BotPassword),
+ * warn (best effort, POSIX only) if it is readable/writable by users other than its owner.
+ *
+ * @param {string} filePath
+ */
+function warnIfConfigFilePermissive(filePath) {
+  if (process.platform === "win32") {
+    return;
+  }
+  try {
+    const { mode } = fs.statSync(filePath);
+    const groupOrOtherAccess = mode & 0o077;
+    if (groupOrOtherAccess) {
+      logger.warn(
+        `Config file "${filePath}" is readable/writable by group or others; it may contain secrets. Consider restricting its permissions (e.g. chmod 600).`
+      );
+    }
+  } catch {
+    // Best-effort only; ignore any errors checking permissions.
+  }
 }
 
 /**
@@ -113,6 +139,12 @@ function validateConfigShape(config, filePath) {
     }
     if (password !== undefined && typeof password !== "string") {
       throw new Error(`Invalid config file "${filePath}": "auth.password" must be a string`);
+    }
+    if (type === "oauth" && !oauthToken) {
+      throw new Error(`Invalid config file "${filePath}": "auth.oauthToken" is required when "auth.type" is "oauth"`);
+    }
+    if (type === "password" && (!userName || !password)) {
+      throw new Error(`Invalid config file "${filePath}": "auth.userName" and "auth.password" are required when "auth.type" is "password"`);
     }
   }
 }

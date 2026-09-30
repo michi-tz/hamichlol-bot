@@ -102,7 +102,7 @@ class WikiClient {
     const oauthToken =
       options.oauthToken ||
       process.env.MC_OAUTH_TOKEN ||
-      (fileAuth.type === "oauth" ? fileAuth.oauthToken : undefined) ||
+      (fileAuth.type !== "password" ? fileAuth.oauthToken : undefined) ||
       "";
 
     if (oauthToken) {

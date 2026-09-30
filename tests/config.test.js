@@ -105,6 +105,26 @@ describe('config.js', () => {
       expect(() => loadConfig({ cwd: tmpDir })).toThrow(/auth.type/);
     });
 
+    test('throws when auth.type is oauth but auth.oauthToken is missing', () => {
+      const filePath = path.join(tmpDir, 'hamichlol-bot.config.json');
+      fs.writeFileSync(
+        filePath,
+        JSON.stringify({ wikiUrl: 'https://wiki.example/api.php', auth: { type: 'oauth' } })
+      );
+
+      expect(() => loadConfig({ cwd: tmpDir })).toThrow(/auth.oauthToken.*required/);
+    });
+
+    test('throws when auth.type is password but userName/password are missing', () => {
+      const filePath = path.join(tmpDir, 'hamichlol-bot.config.json');
+      fs.writeFileSync(
+        filePath,
+        JSON.stringify({ wikiUrl: 'https://wiki.example/api.php', auth: { type: 'password', userName: 'bot' } })
+      );
+
+      expect(() => loadConfig({ cwd: tmpDir })).toThrow(/auth.userName.*and.*auth.password.*required/);
+    });
+
     test('loads password-based auth config', () => {
       const filePath = path.join(tmpDir, 'hamichlol-bot.config.json');
       fs.writeFileSync(
