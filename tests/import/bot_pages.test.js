@@ -1,5 +1,6 @@
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 import { checkBot, detectTemplateCategory } from '../../src/import/bot_pages.js';
+import templateCategories from '../../src/import/check/template-categories.json' with { type: 'json' };
 
 describe('bot_pages.js - detectTemplateCategory and checkBot functions', () => {
   beforeEach(() => {
@@ -98,10 +99,21 @@ describe('bot_pages.js - detectTemplateCategory and checkBot functions', () => {
       // "sport", should win), this test should be updated to match rather
       // than treated as a spec for the correct/intended behavior.
       test('should return the LAST matching category (not the first) when templates from multiple categories are present', () => {
-        const text = 'עמוד על {{אישיות כדורגל}} שהוא גם {{אישיות משחק}}';
+        // Derived from the JSON config's key order instead of hardcoding a
+        // category name, so this test doesn't silently drift out of sync if
+        // template-categories.json is ever reordered or the "sport"/"tv"
+        // sample templates below are renamed within their own lists.
+        const categoryNames = Object.keys(templateCategories.templateCategories);
+        const firstCategory = categoryNames[0];
+        const lastCategory = categoryNames[categoryNames.length - 1];
+        const firstTemplate = templateCategories.templateCategories[firstCategory][0];
+        const lastTemplate = templateCategories.templateCategories[lastCategory][0];
+
+        const text = `עמוד על {{${firstTemplate}}} שהוא גם {{${lastTemplate}}}`;
         const result = detectTemplateCategory(text);
-        expect(result).toBe('tv');
-        expect(result).not.toBe('sport');
+
+        expect(result).toBe(lastCategory);
+        expect(result).not.toBe(firstCategory);
       });
     });
 
