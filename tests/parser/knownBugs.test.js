@@ -3,8 +3,16 @@ import { describe, test, expect } from '@jest/globals';
 /**
  * Dynamically imports `modulePath` and returns the error it rejects with.
  * Importing once (instead of once per assertion) avoids relying on how
- * Node/Jest cache a previously-rejected dynamic import across repeated calls,
- * which is not guaranteed to be consistent across versions.
+ * Node/Jest cache a previously-rejected dynamic import across repeated calls
+ * within the same test, which is not guaranteed to be consistent across
+ * versions.
+ *
+ * Note on cross-test/cross-file caching: each test below imports a distinct
+ * module path, so there is no in-file cache collision between tests. Jest
+ * also gives every test *file* (not just every `test()`) its own isolated
+ * module registry/VM context by default, so results here do not depend on
+ * whether some other test file elsewhere in the suite also happens to import
+ * one of these same broken modules.
  */
 async function importAndCaptureError(modulePath) {
   try {
