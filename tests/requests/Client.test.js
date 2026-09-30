@@ -74,7 +74,16 @@ describe('Client.edit error handling', () => {
   });
 
   test('should throw when the csrf token is missing and cannot be refreshed', async () => {
-    // NOTE: documenting existing behavior - deleting the csrf token forces
+    // NOTE: this replaces a previously-existing "should handle errors when
+    // token is missing" test that asserted `client.edit).not.toHaveBeenCalled()`
+    // - that assertion was tautological (`client.edit` was itself the mocked
+    // function under test, so it trivially "hadn't been called" from inside
+    // its own invocation) and didn't exercise any real logic. This version
+    // instead calls the real `edit()` implementation and asserts on its
+    // actual observable behavior: it throws, and it logs the specific
+    // "Failed to validate token" message described below.
+    //
+    // Documenting existing behavior - deleting the csrf token forces
     // `edit` to request a fresh one via the private `#checkToken`/`#getToken`
     // methods. When the API response doesn't contain `query.tokens` (mocked
     // below), `#getToken` catches its own TypeError, logs it, and returns
