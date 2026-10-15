@@ -29,6 +29,24 @@ pnpm test
 pnpm run lint:test
 ```
 
+## Running the Tests (Jest)
+
+Tests are written with [Jest](https://jestjs.io/) (using `babel-jest` to transpile `import`/`export` syntax) and live under the `tests/` directory, mirroring the structure of `src/` (e.g. `tests/requests/utils/cookie.test.js` tests `src/requests/utils/cookie.js`).
+
+```bash
+# Run the full test suite with a code coverage report
+npm test
+
+# Run a single test file
+npm test -- tests/requests/requests.test.js
+
+# Run without the coverage report (faster)
+npm test -- --no-coverage
+```
+
+Tests are isolated from the network and disk: HTTP calls (`node-fetch`) and the logger (`src/logger.js`) are mocked, so running the test suite does not require an internet connection and does not write real log files.
+
+
 ## Main Features
 
 - Content import from Wikipedia
