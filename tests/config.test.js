@@ -230,5 +230,72 @@ describe('config.js', () => {
       const merged = mergeAuthConfig(undefined, null, { oauthToken: 'tok' });
       expect(merged).toEqual({ oauthToken: 'tok' });
     });
+
+    test('returns an empty object when no source supplies credentials', () => {
+      expect(mergeAuthConfig({}, { userName: undefined }, undefined)).toEqual({});
+    });
+
+    test('explicit userName/password beat an OAuth token from the environment', () => {
+      const merged = mergeAuthConfig(
+        { userName: 'opt-user', password: 'opt-pw' },
+        { oauthToken: 'env-tok' },
+        undefined
+      );
+      expect(merged).toEqual({ userName: 'opt-user', password: 'opt-pw' });
+    });
+
+    test('an explicit oauthToken beats userName/password from the environment', () => {
+      const merged = mergeAuthConfig(
+        { oauthToken: 'opt-tok' },
+        { userName: 'env-user', password: 'env-pw' },
+        undefined
+      );
+      expect(merged).toEqual({ oauthToken: 'opt-tok' });
+    });
+
+    test('environment userName/password beat a config-file OAuth token', () => {
+      const merged = mergeAuthConfig(
+        {},
+        { userName: 'env-user', password: 'env-pw' },
+        { type: 'oauth', oauthToken: 'file-tok' }
+      );
+      expect(merged).toEqual({ userName: 'env-user', password: 'env-pw' });
+    });
+
+    test('merges password-method fields across sources once the method is chosen', () => {
+      const merged = mergeAuthConfig(
+        { userName: 'opt-user' },
+        { password: 'env-pw', oauthToken: undefined },
+        { type: 'oauth', oauthToken: 'file-tok' }
+      );
+      expect(merged).toEqual({ userName: 'opt-user', password: 'env-pw' });
+    });
+
+    test('merges password fields from a lower source and drops its oauthToken', () => {
+      const merged = mergeAuthConfig(
+        { userName: 'opt-user' },
+        { password: 'env-pw', oauthToken: 'env-tok' },
+        undefined
+      );
+      expect(merged).toEqual({ userName: 'opt-user', password: 'env-pw' });
+    });
+
+    test('a single source supplying both an oauthToken and userName/password uses OAuth', () => {
+      const merged = mergeAuthConfig(
+        { oauthToken: 'opt-tok', userName: 'opt-user', password: 'opt-pw' },
+        { userName: 'env-user', password: 'env-pw' },
+        undefined
+      );
+      expect(merged).toEqual({ oauthToken: 'opt-tok' });
+    });
+
+    test('a source whose fields are all filtered out by its type does not decide the method', () => {
+      const merged = mergeAuthConfig(
+        { type: 'password', oauthToken: 'ignored' },
+        { oauthToken: 'env-tok' },
+        undefined
+      );
+      expect(merged).toEqual({ oauthToken: 'env-tok' });
+    });
   });
 });

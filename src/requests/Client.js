@@ -94,22 +94,23 @@ class WikiClient {
 
     // Resolve credentials using the same precedence rules as other settings
     // (explicit options > environment variables > config file's `auth` block).
-    const mergedAuth = mergeAuthConfig(
-      { userName: options.userName, password: options.password, oauthToken: options.oauthToken },
-      {
-        userName: process.env.MC_USER || undefined,
-        password: process.env.MC_PASSWORD || undefined,
-        oauthToken: process.env.MC_OAUTH_TOKEN || undefined,
-      },
-      fileConfig.auth
-    );
+    // The highest-precedence source that supplies any credentials decides the auth method.
+    const optionsAuth = { userName: options.userName, password: options.password, oauthToken: options.oauthToken };
+    const envAuth = {
+      userName: process.env.MC_USER || undefined,
+      password: process.env.MC_PASSWORD || undefined,
+      oauthToken: process.env.MC_OAUTH_TOKEN || undefined,
+    };
+    const mergedAuth = mergeAuthConfig(optionsAuth, envAuth, fileConfig.auth);
 
     this.userName = mergedAuth.userName || "";
     this.#password = mergedAuth.password || "";
     const oauthToken = mergedAuth.oauthToken || "";
 
     if (oauthToken) {
-      if (this.userName || this.#password) {
+      // A config file `auth` block of type "oauth" has its stray userName/password ignored silently.
+      const passwordSources = [optionsAuth, envAuth, fileConfig.auth?.type === "oauth" ? undefined : fileConfig.auth];
+      if (passwordSources.some((source) => source && (source.userName || source.password))) {
         logger.info(
           "Both an OAuth token and username/password were provided; using OAuth and ignoring the BotPassword credentials."
         );

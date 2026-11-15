@@ -66,7 +66,9 @@ Tests are isolated from the network and disk: HTTP calls (`node-fetch`) and the 
   When an OAuth token is configured, the client sends an `Authorization` header with a bearer token on every
   request and
   skips the BotPasswords login flow entirely. Use `client.setOAuthToken(token)` to rotate the token at runtime.
-  If both OAuth and BotPasswords credentials are supplied, OAuth takes precedence.
+  The auth method is chosen by the highest-precedence source (see below) that supplies any credentials, so e.g.
+  `userName`/`password` passed to the constructor win over `MC_OAUTH_TOKEN` in the environment. If that one source
+  supplies both an OAuth token and BotPasswords credentials, OAuth takes precedence.
 
 ### Config file
 

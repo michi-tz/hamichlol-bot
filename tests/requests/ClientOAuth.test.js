@@ -1,4 +1,7 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 function makeFetchResponse({ json = {}, headers = {}, ok = true } = {}) {
   return {
@@ -189,5 +192,113 @@ describe('WikiClient OAuth authentication', () => {
 
   test('throws the existing error when no wikiUrl is available from any source', () => {
     expect(() => new Client()).toThrow("you didn't pass the url of your wiki");
+  });
+});
+
+describe('WikiClient auth method precedence', () => {
+  const ENV_KEYS = ['MC_USER', 'MC_PASSWORD', 'MC_OAUTH_TOKEN', 'MC_CONFIG_PATH'];
+  let savedEnv;
+  let tmpDir;
+
+  beforeEach(() => {
+    savedEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
+    for (const key of ENV_KEYS) delete process.env[key];
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hamichlol-bot-client-auth-'));
+  });
+
+  afterEach(() => {
+    for (const key of ENV_KEYS) {
+      if (savedEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = savedEnv[key];
+    }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  async function authHeaderOfFirstRequest(client) {
+    fetchMock.mockResolvedValueOnce(makeFetchResponse({ json: { query: { pages: {} } } }));
+    await client.wikiGet({ action: 'query' }).catch(() => {});
+    const [, options] = fetchMock.mock.calls[0];
+    return options.headers.Authorization;
+  }
+
+  test('explicit userName/password options beat MC_OAUTH_TOKEN from the environment', async () => {
+    process.env.MC_OAUTH_TOKEN = 'env-token';
+
+    const client = new Client({
+      wikiUrl: 'https://example.org/api.php',
+      userName: 'optUser',
+      password: 'optPassword',
+      withLogedIn: false,
+    });
+
+    expect(client.isLoggedIn).toBe(false);
+    expect(client.userName).toBe('optUser');
+    expect(await authHeaderOfFirstRequest(client)).toBeUndefined();
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  test('an explicit oauthToken option beats MC_USER/MC_PASSWORD and logs that they are ignored', async () => {
+    process.env.MC_USER = 'envUser';
+    process.env.MC_PASSWORD = 'envPassword';
+
+    const client = new Client({
+      wikiUrl: 'https://example.org/api.php',
+      oauthToken: 'opt-token',
+    });
+
+    expect(client.isLoggedIn).toBe(true);
+    expect(client.userName).toBe('');
+    expect(await authHeaderOfFirstRequest(client)).toBe(['Bearer', 'opt-token'].join(' '));
+    expect(logger.info).toHaveBeenCalled();
+  });
+
+  test('MC_USER/MC_PASSWORD from the environment beat an OAuth token in the config file', async () => {
+    const configPath = path.join(tmpDir, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify({ auth: { type: 'oauth', oauthToken: 'file-token' } }), {
+      mode: 0o600,
+    });
+    process.env.MC_CONFIG_PATH = configPath;
+    process.env.MC_USER = 'envUser';
+    process.env.MC_PASSWORD = 'envPassword';
+
+    const client = new Client({ wikiUrl: 'https://example.org/api.php', withLogedIn: false });
+
+    expect(client.isLoggedIn).toBe(false);
+    expect(client.userName).toBe('envUser');
+    expect(await authHeaderOfFirstRequest(client)).toBeUndefined();
+  });
+
+  test('userName from options and MC_PASSWORD from the environment still merge for BotPasswords', async () => {
+    process.env.MC_PASSWORD = 'envPassword';
+
+    const client = new Client({ wikiUrl: 'https://example.org/api.php', userName: 'optUser', withLogedIn: false });
+
+    fetchMock
+      .mockResolvedValueOnce(makeFetchResponse({ json: { query: { tokens: { logintoken: 'lt' } } } }))
+      .mockResolvedValueOnce(makeFetchResponse({ json: { login: { result: 'Success', lgusername: 'optUser' } } }));
+
+    await client.login().catch(() => {});
+
+    const loginCall = fetchMock.mock.calls.find(([, opts]) => String(opts?.body ?? '').includes('action=login'));
+    expect(loginCall).toBeDefined();
+    const body = String(loginCall[1].body);
+    expect(body).toContain('lgname=optUser');
+    expect(body).toContain('lgpassword=envPassword');
+  });
+
+  test('a single source with both oauthToken and userName/password uses OAuth and logs a message', async () => {
+    process.env.MC_USER = 'envUser';
+
+    const client = new Client({
+      wikiUrl: 'https://example.org/api.php',
+      oauthToken: 'opt-token',
+      userName: 'optUser',
+      password: 'optPassword',
+    });
+
+    expect(client.isLoggedIn).toBe(true);
+    expect(client.userName).toBe('');
+    expect(await authHeaderOfFirstRequest(client)).toBe(['Bearer', 'opt-token'].join(' '));
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('using OAuth'));
   });
 });

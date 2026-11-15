@@ -186,6 +186,13 @@ export function mergeConfig(...sources) {
  * *other* auth method are ignored for that source, so an `auth: { type: "oauth", ... }` block
  * with a stray `userName`/`password` (or vice versa) doesn't leak unexpected credentials.
  *
+ * The auth *method* is decided by the highest-precedence source that supplies any credential
+ * field: OAuth if that source supplies an `oauthToken` (OAuth wins when a single untyped source
+ * supplies both), otherwise BotPasswords. Fields for the chosen method are then merged across
+ * all sources by precedence (e.g. `userName` from options plus `password` from the environment),
+ * and fields of the other method are dropped, so a lower-precedence source can never switch
+ * the method chosen by a higher-precedence one.
+ *
  * @param {...Object} sources - Auth objects ordered from highest to lowest precedence. Each may
  *   have `type`, `userName`, `password`, and/or `oauthToken`.
  * @returns {{userName?: string, password?: string, oauthToken?: string}}
@@ -200,7 +207,21 @@ export function mergeAuthConfig(...sources) {
       oauthToken: type === "password" ? undefined : oauthToken,
     };
   });
-  return mergeConfig(...normalized);
+
+  const decisive = normalized.find(
+    (source) => source && (source.oauthToken || source.userName || source.password)
+  );
+  if (!decisive) return {};
+
+  const useOAuth = !!decisive.oauthToken;
+  const merged = mergeConfig(...normalized);
+  if (useOAuth) {
+    delete merged.userName;
+    delete merged.password;
+  } else {
+    delete merged.oauthToken;
+  }
+  return merged;
 }
 
 export default { loadConfig, mergeConfig, mergeAuthConfig };
