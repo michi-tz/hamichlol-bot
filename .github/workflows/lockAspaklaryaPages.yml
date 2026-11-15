@@ -7,8 +7,8 @@ jobs:
   lockAspaklaryaPages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         if: ${{ always() }}
         continue-on-error: true
         with:
@@ -19,7 +19,7 @@ jobs:
             echo "LAST_RUN=$(cat last_successful_run_lock_pages.txt)" >> $GITHUB_ENV
           fi
       - run: tree
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v7
         with:
           node-version: 20.x
       - run: npm install
@@ -34,11 +34,11 @@ jobs:
           echo $(date -u +'%Y-%m-%dT%H:%M:%S.000Z') > last_successful_run_lock_pages.txt
           echo "ARTIFACT_DAY=$(date -u +'%a')" >> $GITHUB_ENV
       - run: tree -I "node_modules"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: last_successful_run_lock_pages
           path: last_successful_run_lock_pages.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: logs_${{env.ARTIFACT_DAY}}_${{github.workflow}}
           path: ./logs

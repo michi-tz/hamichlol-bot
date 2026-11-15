@@ -1,0 +1,15 @@
+# Files to ignore from GitHub Copilot
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+
+# Other sensitive files
+secrets.json
+config.json
+credentials.json
+
+# Logs that might contain sensitive data
+*.log
+logs/

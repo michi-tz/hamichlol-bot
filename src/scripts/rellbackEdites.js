@@ -1,5 +1,6 @@
 import { getRequestsInstance } from "../requests/requests.js";
 import logger from "../logger.js";
+import path from "path";
 
 const request = getRequestsInstance();
 
@@ -44,5 +45,7 @@ async function rollback() {
   request.logout();
 }
 
-rollback();
+if (path.basename(import.meta.url) === path.basename(process.argv[1])) {
+  rollback();
+}
 export default rollback;

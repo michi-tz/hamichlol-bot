@@ -10,8 +10,6 @@ src/logging.js
 # VS Code settings (optional - remove if you want to share workspace settings)
 .vscode/
 
-# Copilot ignore file (optional)
-.copilotignore
 
 # Common folders to ignore
 temp/
@@ -28,3 +26,6 @@ build/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Local bot configuration
+/hamichlol-bot.config.json
