@@ -97,6 +97,7 @@ export class Requests extends WikiClient {
     const query = await this.query({
       options: queryParams,
       getContinue,
+      method,
     });
     return useIdsOrTitles === "ids" ? query : mapIdsToNames(query, "title");
   }
@@ -242,7 +243,7 @@ export class Requests extends WikiClient {
       ...options,
     };
 
-    const res = await (method === "Get"
+    const res = await (String(method).toUpperCase() === "GET"
       ? super.wikiGet(queryParams)
       : super.wikiPost(queryParams));
     if (!getContinue) {
@@ -279,7 +280,7 @@ export class Requests extends WikiClient {
     try {
       while (contin) {
         Object.assign(queryParams, contin);
-        const res = await (method === "Get"
+        const res = await (String(method).toUpperCase() === "GET"
           ? super.wikiGet(queryParams)
           : super.wikiPost(queryParams));
         results = mergeResults(results, res);
