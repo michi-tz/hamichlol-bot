@@ -1,6 +1,6 @@
 // חלק מהקוד בתיקיה זו נלקח או הותאם ממאגר הקוד הפתוח: https://github.com/EladHeller/wiki-bot
 // ראה קובץ CREDITS.md לפרטים נוספים
-import { escapeRegex } from '../utilities.js';
+import { escapeRegex } from './utilities.js';
 import { nextWikiText } from './WikiParser.js';
 import { findTemplates } from './newTemplateParser.js';
 import { getInnerLinks } from './wikiLinkParser.js';
