@@ -7,13 +7,12 @@ updates:
     directory: /
     schedule:
       interval: monthly
-    target-branch: develop
     commit-message:
       prefix: "[dependabot]"
     assignees:
-      - mici-ym
+      - michi-tz
     reviewers:
-      - mici-ym
+      - michi-tz
     open-pull-requests-limit: 10 
     groups:
       typescript-eslint:
