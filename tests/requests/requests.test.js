@@ -80,9 +80,17 @@ describe('Requests query methods (network-isolated)', () => {
       expect(sentParams(fetch.mock.calls[0]).get('titles')).toBe('Alpha|Beta');
     });
 
-    test('sends a real HTTP GET by default', async () => {
+    test('sends a POST by default (title lists can be too long for a URL)', async () => {
       fetch.mockResolvedValue(jsonResponse({ query: { pages: {} } }));
       await r.queryPages({ titles: 'Alpha' });
+      const [, requestOptions] = fetch.mock.calls[0];
+      expect(requestOptions.method).toBe('POST');
+      expect(requestOptions.body.get('titles')).toBe('Alpha');
+    });
+
+    test('sends a real HTTP GET when method: "GET" is passed', async () => {
+      fetch.mockResolvedValue(jsonResponse({ query: { pages: {} } }));
+      await r.queryPages({ titles: 'Alpha', method: 'GET' });
       const [url, requestOptions] = fetch.mock.calls[0];
       expect(requestOptions.method).toBeUndefined();
       expect(requestOptions.body).toBeUndefined();
