@@ -6,7 +6,8 @@
   "scripts": {
     "lint:test": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "sync:parser": "node scripts/sync-parser.mjs"
   },
   "keywords": [],
   "author": "moti of hamichlol.org.il",
@@ -23,6 +24,7 @@
     "babel-jest": "^30.5.2",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
-    "jest": "^30.5.2"
+    "jest": "^30.5.2",
+    "typescript": "6.0.3"
   }
 }

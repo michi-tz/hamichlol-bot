@@ -1,8 +1,12 @@
-// חלק מהקוד בתיקיה זו נלקח או הותאם ממאגר הקוד הפתוח: https://github.com/EladHeller/wiki-bot
-// ראה קובץ CREDITS.md לפרטים נוספים
+// GENERATED FILE - DO NOT EDIT.
+// Run `npm run sync:parser` to regenerate it; local changes will be overwritten.
+// Generated from https://github.com/EladHeller/wiki-bot@1f97761c8dcacb1457c51de976f91a1b14d50afb
+// Original path: bot/wiki/wikiTableParser.ts
+// Source: wiki-bot (github.com/EladHeller), ISC license. See src/parser/CREDITS.md.
+
 import { nextWikiText } from './WikiParser.js';
 
-export function getNextRowDelimiterIndex(rowText, currIndex, delimiter) {
+function getNextRowDelimiterIndex(rowText, currIndex, delimiter) {
   const nextDelimiterIndex1 = nextWikiText(rowText, currIndex, delimiter + delimiter);
   const nextDelimiterIndex2 = nextWikiText(rowText, currIndex, `\n${delimiter}`);
   const index = ((nextDelimiterIndex2 === -1)
@@ -12,33 +16,41 @@ export function getNextRowDelimiterIndex(rowText, currIndex, delimiter) {
   return index;
 }
 
-export function getTableRow(rowText, isHeader) {
+function getTableRow(rowText, isHeader) {
   const text = rowText.replace(/\n\s*\|}/g, '');
   const delimiter = isHeader ? '!' : '|';
-  const row = { fields: [], style: '' };
+  const row = { fields: [], style: '', isHeader };
   let currIndex = 0;
+
   if (text[currIndex] === delimiter) {
     currIndex += 1;
   }
+
   let nextDelimiterIndex = nextWikiText(text, currIndex, delimiter);
   const textToTheNextDelimiter = text.substring(currIndex, nextDelimiterIndex);
+  // Row has style cell
   if (text[nextDelimiterIndex + 1] !== delimiter && !textToTheNextDelimiter.includes('\n')) {
     row.style = text.substring(currIndex, nextDelimiterIndex).trim();
     currIndex = nextDelimiterIndex + 1;
   }
+
   nextDelimiterIndex = getNextRowDelimiterIndex(text, currIndex, delimiter);
+
   while (nextDelimiterIndex !== -1) {
     row.fields.push(text.substring(currIndex, nextDelimiterIndex).trim());
     currIndex = nextDelimiterIndex + 2;
     nextDelimiterIndex = getNextRowDelimiterIndex(text, currIndex, delimiter);
   }
+
   row.fields.push(text.substring(currIndex).trim());
+
   return row;
 }
 
-export function findTablesText(articleContent) {
+function findTablesText(articleContent) {
   const startStr = '{|';
   const tables = [];
+
   let startIndex = articleContent.indexOf(startStr);
   let endIndex;
   while (startIndex > -1) {
@@ -49,7 +61,7 @@ export function findTablesText(articleContent) {
   return tables;
 }
 
-export function tableTextToObject(tableText) {
+function tableTextToObject(tableText) {
   const startStr = '{|';
   const text = tableText;
   const tableData = { text, rows: [], tableStyle: '' };
@@ -59,7 +71,9 @@ export function tableTextToObject(tableText) {
   const hasHeader = (headerIndex > -1) && (headerIndex < rowIndex);
   let currIndex = hasHeader ? headerIndex : rowIndex;
   tableData.tableStyle = text.substring(startStr.length, currIndex).trim();
+
   let nextRowIndex = nextWikiText(text, currIndex, '|-');
+
   if (hasHeader) {
     rowText = nextRowIndex === -1
       ? text.substring(currIndex + 1).trim()
@@ -72,6 +86,7 @@ export function tableTextToObject(tableText) {
     }
     nextRowIndex = nextWikiText(text, currIndex, '|-');
   }
+
   while (nextRowIndex > -1) {
     rowText = text.substring(currIndex + 1, nextRowIndex).trim();
     tableData.rows.push(getTableRow(rowText, false));
@@ -79,14 +94,20 @@ export function tableTextToObject(tableText) {
     currIndex = nextRowIndex;
     nextRowIndex = nextWikiText(text, currIndex, '|-');
   }
+
   rowText = text.substring(currIndex + 1).trim();
   if (rowText) {
     tableData.rows.push(getTableRow(rowText, false));
   }
+
   return tableData;
 }
 
-export function buildTableRow(fields, style, isHeader = false) {
+export function buildTableRow(
+  fields,
+  style,
+  isHeader = false,
+) {
   const delimiter = isHeader ? '!' : '|';
   let rowStr = `\n|-${style ?? ''}\n${delimiter}${fields[0]?.toString().replace(/\n/g, '')}`;
   for (let i = 1; i < fields.length; i += 1) {
@@ -109,7 +130,8 @@ export function buildTableWithStyle(headers, rows, sortable = true) {
 ! ${headersText}${rowsText}\n|}`;
 }
 
-export function parseTableText(articleText) {
+export default function parseTableText(articleText) {
   const tableTexts = findTablesText(articleText);
+
   return tableTexts.map(tableTextToObject);
 }

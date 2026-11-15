@@ -1,0 +1,21 @@
+{
+  "$comment": "Pin and file list for `npm run sync:parser` (scripts/sync-parser.mjs). Files under \"files\" are GENERATED from upstream; files under \"localFiles\" are maintained here. See src/parser/CREDITS.md.",
+  "repo": "https://github.com/EladHeller/wiki-bot.git",
+  "commit": "1f97761c8dcacb1457c51de976f91a1b14d50afb",
+  "license": "ISC",
+  "files": {
+    "bot/wiki/WikiParser.ts": "src/parser/WikiParser.js",
+    "bot/wiki/newTemplateParser.ts": "src/parser/newTemplateParser.js",
+    "bot/wiki/paragraphParser.ts": "src/parser/paragraphParser.js",
+    "bot/wiki/wikiLinkParser.ts": "src/parser/wikiLinkParser.js",
+    "bot/wiki/wikiTableParser.ts": "src/parser/wikiTableParser.js",
+    "bot/wiki/redirectParser.ts": "src/parser/redirectParser.js"
+  },
+  "localFiles": [
+    "src/parser/WikiDataSqlQueries.js",
+    "src/parser/regexpEscapePolyfill.js"
+  ],
+  "polyfills": {
+    "RegExp.escape": "src/parser/regexpEscapePolyfill.js"
+  }
+}

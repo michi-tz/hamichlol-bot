@@ -96,6 +96,28 @@ Settings are resolved with this precedence (highest to lowest):
 Since it may contain secrets, `hamichlol-bot.config.json` is git-ignored — copy the example file and fill in
 your own values.
 
+## Wiki Parser (`src/parser/`) and Upstream Sync
+
+The wikitext parsers in `src/parser/` come from the open-source
+[wiki-bot](https://github.com/EladHeller/wiki-bot) project (ISC license). They are not edited by
+hand: they are generated from the upstream TypeScript sources (types erased, nothing else changed) at
+the commit pinned in `src/parser/upstream.json`. Generated files start with `// GENERATED FILE`;
+the few local files start with `// LOCAL FILE`. Details are in `src/parser/CREDITS.md`.
+
+```bash
+# Regenerate src/parser from the pinned commit (should produce no changes)
+npm run sync:parser
+
+# Move the pin to upstream's latest commit and regenerate
+npm run sync:parser -- --latest
+
+# Or to a specific full commit SHA / branch / tag
+npm run sync:parser -- --ref <sha>
+```
+
+A weekly GitHub Actions workflow (`.github/workflows/sync-parser.yml`) runs the `--latest` sync and opens
+a pull request when upstream changed.
+
 ## License
 
 This project was written by moti of hamichlol.org.il
