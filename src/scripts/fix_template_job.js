@@ -4,7 +4,7 @@ import {
   findTemplate,
   getTemplateKeyValueData,
   templateFromKeyValueData,
-} from "../wiki/newTemplateParser.js";
+} from "../parser/newTemplateParser.js";
 import logger from "../logger.js";
 import WikiBase from "../requests/wikibase.js";
 

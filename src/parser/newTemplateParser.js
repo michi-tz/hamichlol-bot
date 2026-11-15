@@ -19,7 +19,7 @@ export function findTemplates(text, templateName, title) {
       break;
     }
     const templateText = text.substring(templateStartIndex, templateEndIndex + 2);
-    if (templateText.match(new RegExp(`^{{${escapeRegex(templateName)}\s*[|}]`))) {
+    if (templateText.match(new RegExp(`^{{${escapeRegex(templateName)}\\s*[|}]`))) {
       templates.push(text.substring(templateStartIndex, templateEndIndex + 2));
     }
     currIndex = templateEndIndex + 2;

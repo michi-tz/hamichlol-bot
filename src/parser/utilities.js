@@ -99,7 +99,11 @@ function parseLocalDate(dateString, throwError = true) {
   return new Date(`${year}-${monthNumber}-${day.padStart(2, '0')}`);
 }
 
-module.exports = {
+export function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export {
   currencyName,
   prettyNumericValue,
   getLocalDate,
