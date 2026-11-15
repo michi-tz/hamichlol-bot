@@ -1,6 +1,6 @@
 // חלק מהקוד בתיקיה זו נלקח או הותאם ממאגר הקוד הפתוח: https://github.com/EladHeller/wiki-bot
 // ראה קובץ CREDITS.md לפרטים נוספים
-const { nextWikiText } = require('./WikiParser');
+import { nextWikiText } from './WikiParser.js';
 
 function getInnerLinks(text) {
   const links = [];
@@ -57,7 +57,7 @@ function getExternalLink(text) {
   return link;
 }
 
-module.exports = {
+export {
   getInnerLinks,
   getInnerLink,
   getExternalLinks,

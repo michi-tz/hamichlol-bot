@@ -3,7 +3,7 @@ import {
   findTemplate,
   getTemplateKeyValueData,
   templateFromKeyValueData,
-} from "../wiki/newTemplateParser.js";
+} from "../parser/newTemplateParser.js";
 import logger from "../logger.js";
 
 const req = new Requests("https://www.hamichlol.org.il/w/api.php");
