@@ -2,6 +2,7 @@ import { Requests } from "../requests/requests.js";
 
 const request = new Requests("https://www.hamichlol.org.il/w/api.php");
 const wikiApi = new Requests("https://he.wikipedia.org/w/api.php");
+wikiApi.withLogedIn = false;
 
 async function redirectToDatePages() {
   const queryParams = {

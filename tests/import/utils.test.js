@@ -11,9 +11,17 @@ jest.unstable_mockModule('../../src/logger.js', () => ({
   default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+// processWikiContent dynamically imports ./bot_pages.js for bot imports; mock
+// its (async) default export so the bot branch can be tested in isolation.
+jest.unstable_mockModule('../../src/import/bot_pages.js', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 const { getRequestsInstance } = await import('../../src/requests/requests.js');
+const { default: createTionaryPage } = await import('../../src/import/bot_pages.js');
 const { default: logger } = await import('../../src/logger.js');
-const { getProperties, applyReplacements } = await import('../../src/import/utils.js');
+const { getProperties, applyReplacements, processWikiContent } = await import('../../src/import/utils.js');
 
 describe('getProperties', () => {
   test('returns an empty string when properties is null/undefined', () => {
@@ -136,5 +144,46 @@ describe('applyReplacements', () => {
     const result = await applyReplacements('plain text');
 
     expect(result).toEqual({ text: 'plain text', hasReplacements: false });
+  });
+});
+
+describe('processWikiContent (bot branch)', () => {
+  const wikiContent = {
+    title: 'דף בדיקה',
+    revid: 123,
+    text: 'original wikipedia text',
+    properties: [{ name: 'wikibase_item', '*': 'Q1' }],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    getRequestsInstance.mockReturnValue({
+      parse: jest.fn().mockResolvedValue({
+        parse: { wikitext: { '*': JSON.stringify([]) } },
+      }),
+    });
+  });
+
+  test('awaits the async createTionaryPage and uses its resolved text', async () => {
+    createTionaryPage.mockResolvedValue('bot page body\n{{בוט ספורט}}');
+
+    const { text, summary } = await processWikiContent(wikiContent, {
+      currentPage: 'דף בדיקה',
+      bot: 'ספורט',
+      exist: false,
+    });
+
+    expect(createTionaryPage).toHaveBeenCalledWith(wikiContent, 'ספורט');
+    expect(text).not.toContain('[object Promise]');
+    expect(text.startsWith('bot page body\n{{בוט ספורט}}\n{{מיון ויקיפדיה|דף=דף בדיקה|גרסה=123|פריט=Q1|תאריך=')).toBe(true);
+    expect(summary).toBe('ייבוא מוויקיפדיה העברית, ראה רשימת התורמים, בוט ספורט');
+  });
+
+  test('propagates a rejection from createTionaryPage instead of leaving it unhandled', async () => {
+    createTionaryPage.mockRejectedValue(new Error('bot page failed'));
+
+    await expect(
+      processWikiContent(wikiContent, { currentPage: 'דף בדיקה', bot: 'ספורט' })
+    ).rejects.toThrow('bot page failed');
   });
 });

@@ -6,7 +6,7 @@ import { getProperties, applyReplacements } from "./utils.js";
  * Creates a Tionary page from provided data and classification.
  * @param {Object} data - The data object containing text and properties
  * @param {string} classification - The classification for the bot template
- * @returns {string} - The processed text for the page
+ * @returns {Promise<string>} - The processed text for the page
  */
 export default async function createTionaryPage(data, classification) {
   try {
@@ -38,7 +38,8 @@ export default async function createTionaryPage(data, classification) {
       { from: /\|\s?תמונה\s?=[^{}\n|]*\n?/, to: "" },
       { from: /\|\s?דגימת קול\s?=[^{}\n|]*\n?/, to: "" },
     ];
-    text = await applyReplacements(text, replacements);
+    const result = await applyReplacements(text, replacements);
+    text = result.text;
 
     text = defaultsortAndCategories(text, data);
     text = text += `\n{{בוט ${classification}}}`;

@@ -240,6 +240,15 @@ class WikiClient {
     }
   }
   /**
+   * Whether any credentials (BotPassword user name/password or an OAuth token)
+   * are configured.
+   * @private
+   * @returns {boolean}
+   */
+  #hasCredentials() {
+    return !!(this.userName || this.#password || this.#oauthToken);
+  }
+  /**
    * Sends a POST request to the MediaWiki API with the provided body parameters.
    *
    * @async
@@ -251,12 +260,15 @@ class WikiClient {
   }
   /**
    * Makes a GET request to a specified URL with an optional query string.
+   * Logs in automatically first when `withLogedIn` is set and the client is not
+   * logged in yet - unless it has no credentials at all, in which case the
+   * request is sent anonymously.
    *
    * @param {object} queryParams - The query string to be appended to the URL.
    * @returns {Promise<object>} - The response from the GET request in JSON format.
    */
   async wikiGet(queryParams) {
-    if (!this.isLoggedIn && this.withLogedIn) {
+    if (!this.isLoggedIn && this.withLogedIn && this.#hasCredentials()) {
       await this.login();
     }
     return await this.#request("GET", queryParams);

@@ -310,4 +310,37 @@ describe('getRequestsInstance', () => {
     const instance = getRequestsInstance('custom-name', 'https://custom.example/api.php');
     expect(instance.wikiUrl).toBe('https://custom.example/api.php');
   });
+
+  test('the hamichlol instance keeps automatic login on', () => {
+    expect(getRequestsInstance('hamichlol').withLogedIn).toBe(true);
+  });
+
+  test('instances for any other wiki are created with automatic login off', () => {
+    expect(getRequestsInstance('wiki').withLogedIn).toBe(false);
+    expect(getRequestsInstance('custom-name', 'https://custom.example/api.php').withLogedIn).toBe(false);
+  });
+
+  test('the wiki instance does not call login on a GET (even with bot credentials in the env)', async () => {
+    // Undo the wikiGet/wikiPost prototype spies left by the method-selection
+    // suite above, so this goes through the real WikiClient.wikiGet.
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+    fetch.mockResolvedValue(jsonResponse({ query: { pages: { 1: { pageid: 1, title: 'X' } } } }));
+    const wiki = getRequestsInstance('wiki');
+    expect(process.env.MC_USER).toBeTruthy();
+    const loginSpy = jest.spyOn(wiki, 'login');
+
+    await wiki.query({ options: { titles: 'X' } });
+
+    expect(loginSpy).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][1].method).not.toBe('POST'); // GET sends no method
+    loginSpy.mockRestore();
+  });
+
+  test('setting withLogedIn = false afterwards (as existing scripts do) still works', () => {
+    const wiki = getRequestsInstance('wiki');
+    wiki.withLogedIn = false;
+    expect(getRequestsInstance('wiki').withLogedIn).toBe(false);
+  });
 });
