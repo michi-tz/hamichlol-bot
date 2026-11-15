@@ -19,7 +19,7 @@ jobs:
             echo "LAST_RUN=$(cat last_successful_run_lock_pages.txt)" >> $GITHUB_ENV
           fi
       - run: tree
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 20.x
       - run: npm install

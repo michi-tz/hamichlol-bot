@@ -29,6 +29,24 @@ pnpm test
 pnpm run lint:test
 ```
 
+## הרצת הבדיקות (Jest)
+
+הבדיקות נכתבות עם [Jest](https://jestjs.io/) (עם `babel-jest` לטרנספילציה של תחביר `import`/`export`) ונמצאות תחת התיקייה `tests/`, במבנה תואם לזה של `src/` (למשל `tests/requests/utils/cookie.test.js` בודק את `src/requests/utils/cookie.js`).
+
+```bash
+# הרצת כל הבדיקות עם דוח כיסוי קוד
+npm test
+
+# הרצת קובץ בדיקה בודד
+npm test -- tests/requests/requests.test.js
+
+# הרצה ללא דוח כיסוי (מהיר יותר)
+npm test -- --no-coverage
+```
+
+הבדיקות מבודדות מהרשת ומהדיסק: קריאות HTTP (`node-fetch`) והלוגר (`src/logger.js`) מוחלפות (mock) כך שהרצת הבדיקות אינה תלויה בחיבור לאינטרנט ואינה כותבת קבצי לוג אמיתיים.
+
+
 ## תכונות עיקריות
 
 - ייבוא תוכן מויקיפדיה
