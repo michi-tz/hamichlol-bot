@@ -45,16 +45,17 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           git status --short
 
-      - name: Skip if a branch or pull request already exists for this upstream commit
+      # Only an existing pull request (open, merged or closed) means this upstream commit was
+      # handled. A leftover branch without one (e.g. a run that pushed but could not open the
+      # pull request) is not: the branch is overwritten below and the pull request is opened.
+      - name: Skip if a pull request already exists for this upstream commit
         id: existing
         if: steps.sync.outputs.changed == 'true'
         env:
           BRANCH: ${{ steps.sync.outputs.branch }}
         run: |
-          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
-            echo "Branch $BRANCH already exists, nothing to do."
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          elif [ -n "$(gh pr list --head "$BRANCH" --state all --json number --jq '.[].number')" ]; then
+          prs=$(gh pr list --head "$BRANCH" --state all --json number --jq '.[].number')
+          if [ -n "$prs" ]; then
             echo "A pull request from $BRANCH already exists, nothing to do."
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -86,7 +87,7 @@ jobs:
           git switch -c "$BRANCH"
           git add -A src/parser
           git commit -m "Sync parser with wiki-bot ${NEW_SHA:0:7}" -m "Upstream changes: $COMPARE_URL"
-          git push origin "$BRANCH"
+          git push --force origin "$BRANCH"
 
           title="Sync parser with wiki-bot ${OLD_SHA:0:7}..${NEW_SHA:0:7}"
           if [ "$STATUS" = "passed" ]; then
