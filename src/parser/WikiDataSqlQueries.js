@@ -38,7 +38,7 @@ function companiesWithTicker() {
   }`;
 }
 
-module.exports = {
+export {
   companiesWithMayaId,
   personWithBirthdayInDay,
   companiesWithTicker,
