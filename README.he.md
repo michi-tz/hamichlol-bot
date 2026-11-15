@@ -93,6 +93,28 @@ npm test -- --no-coverage
 `auth.type` יכול להיות `"oauth"` (עם `oauthToken`) או `"password"` (עם `userName` ו-`password`).
 מכיוון שהקובץ עלול להכיל סודות, `hamichlol-bot.config.json` מוחרג מ-git — העתיקו את קובץ הדוגמה ומלאו בו את הערכים שלכם.
 
+## מפרסר הוויקי (`src/parser/`) וסנכרון מהמקור
+
+מפרסי קוד הוויקי שבתיקייה `src/parser/` מגיעים מפרויקט הקוד הפתוח
+[wiki-bot](https://github.com/EladHeller/wiki-bot) (רישיון ISC). אין לערוך אותם ידנית: הם נוצרים
+אוטומטית מקובצי ה-TypeScript של המקור (רק הטיפוסים מוסרים, שאר הקוד נשאר כמו שהוא) לפי ה-commit
+הנעוץ בקובץ `src/parser/upstream.json`. קבצים שנוצרו מתחילים ב-`// GENERATED FILE`, והקבצים
+המקומיים המעטים מתחילים ב-`// LOCAL FILE`. פרטים נוספים בקובץ `src/parser/CREDITS.md`.
+
+```bash
+# יצירה מחדש של src/parser מה-commit הנעוץ (לא אמורים להיווצר שינויים)
+npm run sync:parser
+
+# עדכון הנעיצה ל-commit האחרון במקור ויצירה מחדש
+npm run sync:parser -- --latest
+
+# או ל-SHA מלא / ענף / תגית מסוימים
+npm run sync:parser -- --ref <sha>
+```
+
+תהליך GitHub Actions שבועי (`.github/workflows/sync-parser.yml`) מריץ את הסנכרון עם `--latest`
+ופותח בקשת משיכה (pull request) כשיש שינויים במקור.
+
 ## רישיון
 
 פרויקט זה נכתב על ידי moti of hamichlol.org.il

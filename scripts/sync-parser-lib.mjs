@@ -132,9 +132,10 @@ function listRemovalRanges(elements, removed, sourceFile) {
   return ranges;
 }
 
-function isTypeNode(node) {
-  return ts.isTypeNode(node) || ts.isExpressionWithTypeArguments(node) && ts.isHeritageClause(node.parent)
-    && node.parent.token === ts.SyntaxKind.ImplementsKeyword;
+/** `Base<T>` in `class A extends Base<T>`: a value expression with type arguments. */
+function isClassExtends(node) {
+  return ts.isExpressionWithTypeArguments(node) && ts.isHeritageClause(node.parent)
+    && node.parent.token === ts.SyntaxKind.ExtendsKeyword && ts.isClassLike(node.parent.parent);
 }
 
 /**
@@ -146,6 +147,10 @@ function collectValueIdentifiers(sourceFile) {
   const names = new Set();
   const visit = (node) => {
     if (ts.isImportDeclaration(node)) return;
+    if (isClassExtends(node)) {
+      visit(node.expression);
+      return;
+    }
     if (ts.isTypeNode(node) || ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) return;
     if (ts.isIdentifier(node)) names.add(node.text);
     if (ts.isShorthandPropertyAssignment(node)) names.add(node.name.text);
@@ -291,7 +296,9 @@ export function stripTypes(source, fileName = 'input.ts') {
       });
     }
     if (node.typeParameters) remove(angleRange(text, node.typeParameters));
-    if (node.typeArguments && !isTypeNode(node)) remove(angleRange(text, node.typeArguments));
+    if (node.typeArguments && (!ts.isTypeNode(node) || isClassExtends(node))) {
+      remove(angleRange(text, node.typeArguments));
+    }
     if (node.questionToken && (ts.isParameter(node) || ts.isPropertyDeclaration(node)
       || ts.isMethodDeclaration(node))) {
       remove(tokenRange(node.questionToken, sourceFile));
@@ -348,9 +355,33 @@ function transpileForComparison(code, fileName) {
 
 /** Throws unless `js` is valid JavaScript equivalent to the TypeScript `tsSource`. */
 export function verifyErasure(tsSource, js, fileName = 'input.ts') {
-  const jsFile = ts.createSourceFile(fileName.replace(/\.tsx?$/, '.js'), js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS);
-  if (jsFile.parseDiagnostics.length) {
-    const diag = jsFile.parseDiagnostics[0];
+  // A program is needed: the plain parser accepts TypeScript syntax in .js
+  // files and only reports it ("... can only be used in TypeScript files")
+  // through the program's syntactic diagnostics.
+  const jsName = `/virtual/${path.posix.basename(fileName).replace(/\.tsx?$/, '')}.js`;
+  const jsFile = ts.createSourceFile(jsName, js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS);
+  const host = {
+    getSourceFile: (name) => (name === jsName ? jsFile : undefined),
+    getDefaultLibFileName: () => '/virtual/lib.d.ts',
+    writeFile: () => {},
+    getCurrentDirectory: () => '/virtual',
+    getCanonicalFileName: (name) => name,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => '\n',
+    fileExists: (name) => name === jsName,
+    readFile: (name) => (name === jsName ? js : undefined),
+    directoryExists: () => true,
+    getDirectories: () => [],
+  };
+  const program = ts.createProgram({
+    rootNames: [jsName],
+    options: {
+      allowJs: true, noEmit: true, noLib: true, noResolve: true, types: [], target: ts.ScriptTarget.ESNext,
+    },
+    host,
+  });
+  const [diag] = program.getSyntacticDiagnostics(jsFile);
+  if (diag) {
     throw new SyncError(`Type erasure produced invalid JavaScript (${location(jsFile, diag.start)}): ${ts.flattenDiagnosticMessageText(diag.messageText, '\n')}`);
   }
   const expected = transpileForComparison(tsSource, fileName);
