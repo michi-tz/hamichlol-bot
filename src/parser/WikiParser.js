@@ -1,65 +1,167 @@
-// חלק מהקוד בתיקיה זו נלקח או הותאם ממאגר הקוד הפתוח: https://github.com/EladHeller/wiki-bot
-// ראה קובץ CREDITS.md לפרטים נוספים
-const nowiki = '<nowiki>';
-const nowikiEnd = '</nowiki>';
-const comment = '<!--';
-const commentEnd = '-->';
+// GENERATED FILE - DO NOT EDIT.
+// Run `npm run sync:parser` to regenerate it; local changes will be overwritten.
+// Generated from https://github.com/EladHeller/wiki-bot@1f97761c8dcacb1457c51de976f91a1b14d50afb
+// Original path: bot/wiki/WikiParser.ts
+// Source: wiki-bot (github.com/EladHeller), ISC license. See src/parser/CREDITS.md.
 
-export function noWikiEndTagIndex(text, startIndex) {
-  const nextNoWikiEndIndex = text.indexOf(nowikiEnd, startIndex);
-  if (nextNoWikiEndIndex === -1) {
-    return -1;
+function findLastInStack(stack, type) {
+  for (let i = stack.length - 1; i >= 0; i -= 1) {
+    if (stack[i].type === type) {
+      return i;
+    }
   }
-  return nextNoWikiEndIndex + nowikiEnd.length;
+  return -1;
 }
 
-export function nextWikiText(text, currIndex, str, ignoreTemplates, title) {
-  let index = currIndex;
-  while (text.substring(index, index + str.length) !== str && index < text.length && index !== -1) {
-    if (text.substring(index, index + nowiki.length) === nowiki) {
-      const before = index;
-      index = noWikiEndTagIndex(text, index);
-      if (index === -1) {
-        console.warn('<nowiki> without </nowiki>', title, console.log(text.substring(before, before + 100)));
-        index = before + nowiki.length;
-      }
-    } else if (text.substring(index, index + comment.length) === comment) {
-      const before = index;
-      index = text.indexOf(commentEnd, index);
-      if (index === -1) {
-        console.warn('<!-- without -->', title, console.log(text.substring(before, before + 100)));
-        index = before + comment.length;
+const inertClosingTags = {
+  nowiki: '</nowiki>',
+  math: '</math>',
+  comment: '-->',
+};
+
+export function parseWikiStructures(text, startIndex, title) {
+  const actualStartIndex = startIndex ?? 0;
+  const structures = [];
+  const stack = [];
+
+  let i = actualStartIndex;
+  while (i < text.length) {
+    const currentStructure = stack.at(-1);
+    const inertClosingTag = currentStructure && inertClosingTags[currentStructure.type];
+
+    if (currentStructure && inertClosingTag) {
+      if (text.substring(i, i + inertClosingTag.length) === inertClosingTag) {
+        stack.pop();
+        structures.push({
+          type: currentStructure.type,
+          start: currentStructure.start,
+          end: i + inertClosingTag.length,
+        });
+        i += inertClosingTag.length;
       } else {
-        index += commentEnd.length;
+        i += 1;
       }
-    } else if (text.substring(index, index + 2) === '{{' && !ignoreTemplates) {
-      const before = index;
-      index = nextWikiText(text, index + 2, '}}');
-      if (index === -1) {
-        console.warn('"{{" without "}}"', title, console.log(text.substring(before, before + 100)));
-        index = before;
+    } else if (text.substring(i, i + 8) === '<nowiki>') {
+      stack.push({ type: 'nowiki', start: i });
+      i += 8;
+    } else if (text.substring(i, i + 6) === '<math>') {
+      stack.push({ type: 'math', start: i });
+      i += 6;
+    } else if (text.substring(i, i + 4) === '<!--') {
+      stack.push({ type: 'comment', start: i });
+      i += 4;
+    } else if (text.substring(i, i + 3) === '{{{') {
+      stack.push({ type: 'parameter', start: i });
+      i += 3;
+    } else if (text.substring(i, i + 2) === '{{') {
+      stack.push({ type: 'template', start: i });
+      i += 2;
+    } else if (text[i] === '{') {
+      // Single brace - track it to maintain backward compatibility
+      stack.push({ type: 'brace', start: i });
+      i += 1;
+    } else if (text.substring(i, i + 2) === '[[') {
+      stack.push({ type: 'wikilink', start: i });
+      i += 2;
+    } else if (text[i] === '[') {
+      stack.push({ type: 'link', start: i });
+      i += 1;
+    } else if (text[i] === '}') {
+      // For closing braces, check what's on the stack to determine how many to consume
+      // Priority: }}} for parameter, }} for template, } for single brace
+      let matched = false;
+
+      if (text.substring(i, i + 3) === '}}}') {
+        const lastParam = findLastInStack(stack, 'parameter');
+        if (lastParam !== -1) {
+          const item = stack.splice(lastParam, 1)[0];
+          structures.push({ type: 'parameter', start: item.start, end: i + 3 });
+          i += 3;
+          matched = true;
+        }
       }
-      index += 2;
-    } else if (text[index] === '{' && !ignoreTemplates) {
-      const before = index;
-      index = nextWikiText(text, index + 1, '}');
-      if (index === -1) {
-        console.warn('"{" without "}"', title, console.log(text.substring(before, before + 100)));
-        index = before;
+
+      if (!matched && text.substring(i, i + 2) === '}}') {
+        const lastTemplate = findLastInStack(stack, 'template');
+        if (lastTemplate !== -1) {
+          const item = stack.splice(lastTemplate, 1)[0];
+          structures.push({ type: 'template', start: item.start, end: i + 2 });
+          i += 2;
+          matched = true;
+        }
       }
-      index += 1;
-    } else if (text[index] === '[') {
-      const before = index;
-      index = nextWikiText(text, index + 1, ']');
-      if (index === -1) {
-        console.warn('"[" without "]"', title, console.log(text.substring(before, before + 100)));
-        index = before;
+
+      if (!matched) {
+        const lastBrace = findLastInStack(stack, 'brace');
+        if (lastBrace !== -1) {
+          const item = stack.splice(lastBrace, 1)[0];
+          structures.push({ type: 'brace', start: item.start, end: i + 1 });
+        }
+        i += 1;
       }
-      index += 1;
+    } else if (text.substring(i, i + 2) === ']]') {
+      const lastWikilink = findLastInStack(stack, 'wikilink');
+      if (lastWikilink !== -1) {
+        const item = stack.splice(lastWikilink, 1)[0];
+        structures.push({ type: 'wikilink', start: item.start, end: i + 2 });
+      }
+      i += 2;
+    } else if (text[i] === ']') {
+      const lastLink = findLastInStack(stack, 'link');
+      if (lastLink !== -1) {
+        const item = stack.splice(lastLink, 1)[0];
+        structures.push({ type: 'link', start: item.start, end: i + 1 });
+      }
+      i += 1;
     } else {
+      i += 1;
+    }
+  }
+
+  // Log unclosed structures
+  if (stack.length > 0) {
+    stack.forEach((unclosed) => {
+      const preview = text.substring(unclosed.start, Math.min(unclosed.start + 100, text.length));
+      console.debug(`Warning: Unclosed ${unclosed.type} in ${title ? `"${title}"` : 'text'} at position ${unclosed.start}: ${preview}...`);
+    });
+  }
+
+  return structures.sort((a, b) => a.start - b.start);
+}
+
+export function findStructureAtIndex(
+  structures,
+  currentIndex,
+  ignoreTemplates,
+) {
+  return structures.find((s) => currentIndex > s.start && currentIndex < s.end
+    && (s.type === 'nowiki' || s.type === 'comment' || s.type === 'math'
+     || (!ignoreTemplates && (s.type === 'template' || s.type === 'parameter' || s.type === 'brace'
+        || s.type === 'wikilink' || s.type === 'link'))));
+}
+
+export function nextWikiText(
+  text,
+  currIndex,
+  str,
+  ignoreTemplates,
+  title,
+) {
+  const structures = parseWikiStructures(text, currIndex, title);
+
+  let index = currIndex;
+  while (index < text.length) {
+    const insideStructure = findStructureAtIndex(structures, index, ignoreTemplates);
+
+    if (insideStructure) {
+      index = insideStructure.end;
+    } else {
+      if (text.substring(index, index + str.length) === str) {
+        return index;
+      }
       index += 1;
     }
   }
-  index = index < text.length ? index : -1;
-  return index;
+
+  return -1;
 }

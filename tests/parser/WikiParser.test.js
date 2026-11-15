@@ -1,18 +1,68 @@
 import { describe, test, expect } from '@jest/globals';
-import { nextWikiText, noWikiEndTagIndex } from '../../src/parser/WikiParser.js';
+import {
+  findStructureAtIndex,
+  nextWikiText,
+  parseWikiStructures,
+} from '../../src/parser/WikiParser.js';
 
-describe('noWikiEndTagIndex', () => {
-  test('returns the index right after </nowiki> when present', () => {
-    expect(noWikiEndTagIndex('abc</nowiki>def', 0)).toBe(12);
+// Upstream replaced the old `noWikiEndTagIndex` helper with a structure
+// parser (`parseWikiStructures` / `findStructureAtIndex`). The <nowiki>
+// handling it used to cover is tested through those functions below.
+
+describe('parseWikiStructures', () => {
+  test('parses a template without a startIndex', () => {
+    expect(parseWikiStructures('{{template}} text')).toStrictEqual([
+      { type: 'template', start: 0, end: 12 },
+    ]);
   });
 
-  test('returns -1 when there is no </nowiki> tag', () => {
-    expect(noWikiEndTagIndex('abcdef', 0)).toBe(-1);
+  test('starts parsing at startIndex', () => {
+    expect(parseWikiStructures('{{a}} {{template}} after', 6)).toStrictEqual([
+      { type: 'template', start: 6, end: 18 },
+    ]);
   });
 
-  test('searches starting from the given index', () => {
-    const text = '</nowiki>abc</nowiki>def';
-    expect(noWikiEndTagIndex(text, 5)).toBe(21);
+  test('returns nested structures sorted by start', () => {
+    const text = '{{t|[[x|y]]|{{{p}}}|[http://a b]}}';
+    expect(parseWikiStructures(text).map(({ type }) => type)).toEqual([
+      'template', 'wikilink', 'parameter', 'link',
+    ]);
+  });
+
+  test.each([
+    ['nowiki', '<nowiki>', '</nowiki>'],
+    ['comment', '<!--', '-->'],
+    ['math', '<math>', '</math>'],
+  ])('ignores all wiki syntax inside %s', (type, opening, closing) => {
+    const hiddenText = '{{hidden}} {{{parameter}}} {brace} [[wikilink]] [link]';
+    const inertEnd = opening.length + hiddenText.length + closing.length;
+    const text = `${opening}${hiddenText}${closing} {{visible}}`;
+    expect(parseWikiStructures(text)).toStrictEqual([
+      { type, start: 0, end: inertEnd },
+      { type: 'template', start: inertEnd + 1, end: text.length },
+    ]);
+  });
+
+  test('does not report unclosed structures', () => {
+    expect(parseWikiStructures('{{open [[link')).toEqual([]);
+  });
+});
+
+describe('findStructureAtIndex', () => {
+  const text = '<nowiki>x</nowiki> {{t|a}}';
+  const structures = parseWikiStructures(text);
+
+  test('finds the <nowiki> span containing an index', () => {
+    expect(findStructureAtIndex(structures, 3)).toEqual({ type: 'nowiki', start: 0, end: 18 });
+  });
+
+  test('finds templates unless ignoreTemplates is set', () => {
+    expect(findStructureAtIndex(structures, 22)).toEqual({ type: 'template', start: 19, end: 26 });
+    expect(findStructureAtIndex(structures, 22, true)).toBeUndefined();
+  });
+
+  test('the start index itself is not inside the structure', () => {
+    expect(findStructureAtIndex(structures, 0)).toBeUndefined();
   });
 });
 
@@ -37,6 +87,10 @@ describe('nextWikiText', () => {
     expect(nextWikiText(text, 0, ']]', true)).toBe(11);
   });
 
+  test('skips over <math> spans when searching', () => {
+    expect(nextWikiText('<math>{{test}}</math>{{test}}', 0, '{{test}}')).toBe(21);
+  });
+
   test('skips over balanced {{ }} templates when ignoreTemplates is false', () => {
     const text = '{{template with ]] inside}}]]end';
     expect(nextWikiText(text, 0, ']]', false)).toBe(27);
@@ -52,9 +106,26 @@ describe('nextWikiText', () => {
     expect(nextWikiText(text, 0, ']]', false)).toBe(16);
   });
 
-  test('skips over [ ... ] bracket groups regardless of ignoreTemplates', () => {
+  test('finds text after a [ ... ] bracket group', () => {
     const text = '[single ] bracket]]end';
     expect(nextWikiText(text, 0, ']]', true)).toBe(17);
+  });
+
+  test('skips over [ ... ] external links only when ignoreTemplates is false', () => {
+    // Upstream behaviour change: the old copy skipped single-bracket groups
+    // even with ignoreTemplates=true; now only <nowiki>, comments and <math>
+    // are skipped in that mode.
+    expect(nextWikiText('[a b] b', 0, 'b', false)).toBe(6);
+    expect(nextWikiText('[a b] b', 0, 'b', true)).toBe(3);
+  });
+
+  test('skips over {{{ }}} template parameters', () => {
+    expect(nextWikiText('{{{param|default}}} default', 0, 'default')).toBe(20);
+  });
+
+  test('an unclosed <nowiki> or comment does not hide the rest of the text', () => {
+    expect(nextWikiText('a <nowiki>{{x}}', 0, '{{x}}')).toBe(10);
+    expect(nextWikiText('a <!--{{x}}', 0, '{{x}}')).toBe(6);
   });
 
   test('returns -1 immediately when currIndex is at or past text length and search string not found there', () => {

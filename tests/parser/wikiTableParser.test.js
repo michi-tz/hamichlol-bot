@@ -1,82 +1,98 @@
 import { describe, test, expect } from '@jest/globals';
-import {
-  getNextRowDelimiterIndex,
-  getTableRow,
-  findTablesText,
-  tableTextToObject,
+import parseTableText, {
   buildTableRow,
   buildTable,
   buildTableWithStyle,
-  parseTableText,
 } from '../../src/parser/wikiTableParser.js';
+import * as wikiTableParser from '../../src/parser/wikiTableParser.js';
 
 const SIMPLE_TABLE = '{| class="wikitable"\n! A !! B\n|-\n| 1 || 2\n|-\n| 3 || 4\n|}';
 
-describe('getNextRowDelimiterIndex', () => {
-  test('finds a double-delimiter split within a row', () => {
-    expect(getNextRowDelimiterIndex('a||b', 0, '|')).toBe(1);
-  });
+// Upstream made getNextRowDelimiterIndex, getTableRow, findTablesText and
+// tableTextToObject module-private and turned parseTableText into the
+// default export, so the row/table parsing behaviour that used to be tested
+// on those helpers is tested through parseTableText. Rows now also carry an
+// `isHeader` flag.
 
-  test('returns -1 when there is no delimiter', () => {
-    expect(getNextRowDelimiterIndex('nodelimiter', 0, '|')).toBe(-1);
-  });
+const parseSingle = (tableText) => {
+  const tables = parseTableText(tableText);
+  expect(tables).toHaveLength(1);
+  return tables[0];
+};
 
-  test('finds a newline-prefixed delimiter split', () => {
-    expect(getNextRowDelimiterIndex('a\n|b', 0, '|')).toBe(1);
-  });
-});
-
-describe('getTableRow', () => {
-  test('parses a simple header row', () => {
-    expect(getTableRow('A !! B', true)).toEqual({ fields: ['A', 'B'], style: '' });
-  });
-
-  test('parses a simple data row', () => {
-    expect(getTableRow('1 || 2', false)).toEqual({ fields: ['1', '2'], style: '' });
-  });
-
-  test('parses a single-field row', () => {
-    expect(getTableRow('solo', false)).toEqual({ fields: ['solo'], style: '' });
+describe('module exports', () => {
+  test('exposes parseTableText as the default export and the builders as named exports', () => {
+    expect(Object.keys(wikiTableParser).sort()).toEqual(
+      ['buildTable', 'buildTableRow', 'buildTableWithStyle', 'default'],
+    );
   });
 });
 
-describe('findTablesText', () => {
+describe('row parsing (formerly getTableRow / getNextRowDelimiterIndex)', () => {
+  test('splits a header row on "!!" and a data row on "||"', () => {
+    expect(parseSingle(SIMPLE_TABLE).rows.slice(0, 2)).toEqual([
+      { fields: ['A', 'B'], style: '', isHeader: true },
+      { fields: ['1', '2'], style: '', isHeader: false },
+    ]);
+  });
+
+  test('splits cells given on separate "|" lines and keeps single-field rows', () => {
+    const { rows } = parseSingle('{|\n|-\n| a\n| b\n|-\n| solo\n|}');
+    expect(rows.slice(1)).toEqual([
+      { fields: ['a', 'b'], style: '', isHeader: false },
+      { fields: ['solo'], style: '', isHeader: false },
+    ]);
+  });
+
+  test('reads a row style cell', () => {
+    const { rows } = parseSingle('{|\n|-\n| style="c" | a || b\n|}');
+    expect(rows[1]).toEqual({ fields: ['a', 'b'], style: 'style="c"', isHeader: false });
+  });
+
+  test('does not split on delimiters inside templates or links', () => {
+    const { rows } = parseSingle('{|\n|-\n| {{t|x}} || [[a|b]]\n|}');
+    expect(rows[1].fields).toEqual(['{{t|x}}', '[[a|b]]']);
+  });
+});
+
+describe('finding tables (formerly findTablesText)', () => {
   test('returns an empty array when there is no table', () => {
-    expect(findTablesText('just plain text')).toEqual([]);
+    expect(parseTableText('just plain text')).toEqual([]);
   });
 
   test('extracts a single table embedded in surrounding text', () => {
     const content = `before\n${SIMPLE_TABLE}\nafter`;
-    expect(findTablesText(content)).toEqual([SIMPLE_TABLE]);
+    expect(parseTableText(content).map(({ text }) => text)).toEqual([SIMPLE_TABLE]);
   });
 
   test('extracts multiple tables', () => {
     const content = `${SIMPLE_TABLE}\nmiddle\n${SIMPLE_TABLE}`;
-    expect(findTablesText(content)).toHaveLength(2);
+    expect(parseTableText(content).map(({ text }) => text)).toEqual([SIMPLE_TABLE, SIMPLE_TABLE]);
   });
 });
 
-describe('tableTextToObject', () => {
+describe('table parsing (formerly tableTextToObject)', () => {
   test('parses table style, header and data rows', () => {
-    const result = tableTextToObject(SIMPLE_TABLE);
-    expect(result.tableStyle).toBe('class="wikitable"');
-    expect(result.rows).toEqual([
-      { fields: ['A', 'B'], style: '' },
-      { fields: ['1', '2'], style: '' },
-      { fields: ['3', '4'], style: '' },
-    ]);
+    expect(parseSingle(SIMPLE_TABLE)).toEqual({
+      text: SIMPLE_TABLE,
+      tableStyle: 'class="wikitable"',
+      rows: [
+        { fields: ['A', 'B'], style: '', isHeader: true },
+        { fields: ['1', '2'], style: '', isHeader: false },
+        { fields: ['3', '4'], style: '', isHeader: false },
+      ],
+    });
   });
 
   test('parses a table without a header row', () => {
     // NOTE: documenting existing behavior - the leading "{|" itself is
     // treated as an empty first data row before the "|-" row separator is
-    // reached, so an extra `{ fields: [''], style: '' }` row is produced
-    // ahead of the actual data row.
-    const table = '{|\n|-\n| x || y\n|}';
-    const result = tableTextToObject(table);
+    // reached, so an extra `{ fields: [''] }` row is produced ahead of the
+    // actual data row.
+    const result = parseSingle('{|\n|-\n| x || y\n|}');
     expect(result.rows).toEqual([
-      { fields: [''], style: '' },
-      { fields: ['x', 'y'], style: '' },
+      { fields: [''], style: '', isHeader: false },
+      { fields: ['x', 'y'], style: '', isHeader: false },
     ]);
   });
 });
@@ -132,6 +148,11 @@ describe('parseTableText (round trip)', () => {
     const parsed = parseTableText(article);
     expect(parsed).toHaveLength(1);
     expect(parsed[0].rows).toHaveLength(3);
+  });
+
+  test('a built table parses back to the same cells', () => {
+    const [parsed] = parseTableText(buildTable(['H1', 'H2'], [['a', 'b'], ['c', 'd']]));
+    expect(parsed.rows.map(({ fields }) => fields)).toEqual([['H1', 'H2'], ['a', 'b'], ['c', 'd']]);
   });
 
   test('returns an empty array for an article without tables', () => {

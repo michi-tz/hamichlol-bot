@@ -1,30 +1,49 @@
-import { escapeRegex } from './utilities.js';
-import { nextWikiText } from './WikiParser.js';
+// GENERATED FILE - DO NOT EDIT.
+// Run `npm run sync:parser` to regenerate it; local changes will be overwritten.
+// Generated from https://github.com/EladHeller/wiki-bot@1f97761c8dcacb1457c51de976f91a1b14d50afb
+// Original path: bot/wiki/newTemplateParser.ts
+// Source: wiki-bot (github.com/EladHeller), ISC license. See src/parser/CREDITS.md.
+
+import './regexpEscapePolyfill.js'; // local polyfill, see src/parser/CREDITS.md
+
+import { parseWikiStructures, nextWikiText } from './WikiParser.js';
+
+const isStructureInsideAnother = (
+  inner,
+  outer,
+) => inner.start > outer.start && inner.end <= outer.end;
 
 export function findTemplates(text, templateName, title) {
-  const templates = [];
-  let currIndex = 0;
-  let templateStartIndex = 0;
-  let templateEndIndex = 0;
-  const templateStart = `{{${templateName}`;
-  while (currIndex < text.length) {
-    templateStartIndex = text.substring(currIndex).indexOf(templateStart);
-    if (templateStartIndex === -1) {
-      break;
+  const structures = parseWikiStructures(text, 0, title);
+  const templateStartRegex = new RegExp(`^{{\\s*${RegExp.escape(templateName)}`);
+  const templateRegex = new RegExp(`^{{\\s*${RegExp.escape(templateName)}\\s*[|}]`);
+
+  const templateStructures = structures.filter((s) => s.type === 'template' || s.type === 'parameter');
+  const skipRanges = [];
+  const matchingTemplates = [];
+
+  templateStructures.forEach((structure) => {
+    const insideSkippedRange = skipRanges.some((range) => isStructureInsideAnother(structure, range));
+
+    if (insideSkippedRange) {
+      return;
     }
-    templateStartIndex = currIndex + templateStartIndex;
-    templateEndIndex = nextWikiText(text, templateStartIndex + templateStart.length, '}}');
-    if (templateEndIndex === -1) {
-      console.log('Error: template end not found', title, text.substring(templateStartIndex, templateStartIndex + 100));
-      break;
+
+    const templateText = text.substring(structure.start, structure.end);
+    const startsWithName = templateText.match(templateStartRegex);
+
+    if (startsWithName != null) {
+      const matchesRegex = templateText.match(templateRegex);
+
+      if (matchesRegex) {
+        matchingTemplates.push(templateText);
+      } else {
+        skipRanges.push(structure);
+      }
     }
-    const templateText = text.substring(templateStartIndex, templateEndIndex + 2);
-    if (templateText.match(new RegExp(`^{{${escapeRegex(templateName)}\\s*[|}]`))) {
-      templates.push(text.substring(templateStartIndex, templateEndIndex + 2));
-    }
-    currIndex = templateEndIndex + 2;
-  }
-  return templates;
+  });
+
+  return matchingTemplates;
 }
 
 export function findTemplate(text, templateName, title) {
@@ -36,18 +55,27 @@ export function getTemplateKeyValueData(templateText) {
   const obj = {};
   if (templateText) {
     let currIndex = templateText.indexOf('|') + 1;
+    if (currIndex === 0) {
+      return {};
+    }
+
     let isTemplateEnd = false;
     while (!isTemplateEnd) {
       let value;
       const equalSignIndex = templateText.indexOf('=', currIndex);
+      if (equalSignIndex === -1) {
+        return obj;
+      }
       const key = templateText.substring(currIndex, equalSignIndex).trim();
       const pipeSignIndex = nextWikiText(templateText, currIndex, '|');
       isTemplateEnd = pipeSignIndex === -1;
+
       if (isTemplateEnd) {
         value = templateText.substring(equalSignIndex + 1, templateText.length - 2).trim();
       } else {
         value = templateText.substring(equalSignIndex + 1, pipeSignIndex).trim();
       }
+
       obj[key] = value;
       currIndex = pipeSignIndex + 1;
     }
@@ -55,17 +83,32 @@ export function getTemplateKeyValueData(templateText) {
   return obj;
 }
 
-export function templateFromKeyValueData(data, templateName, newLines = true) {
+export function templateFromKeyValueData(
+  data,
+  templateName,
+  newLines = true,
+) {
   const endOfValue = newLines ? '\n' : '';
-  let templateStr = `{{${templateName}${endOfValue}`;
-  Object.entries(data).forEach(([key, value]) => {
-    templateStr += `|${key}=${value}${endOfValue}`;
+  let templateStr = `{{${templateName}`;
+
+  Object.entries(data).forEach(([key, value], index) => {
+    if (index > 0) {
+      templateStr += `|${key}=${value}${endOfValue}`;
+    } else {
+      templateStr += `${endOfValue}|${key}=${value}${endOfValue}`;
+    }
   });
   templateStr += '}}';
+
   return templateStr;
 }
 
-export function getTemplateArrayData(templateText, templateName, title, ignoreNamedParams = false) {
+export function getTemplateArrayData(
+  templateText,
+  templateName,
+  title,
+  ignoreNamedParams = false,
+) {
   const templateContent = templateText.replace(`{{${templateName}`, '').replace(/}}$/, '');
   if (!templateContent.match(/^\s*\|/)) {
     return [];
@@ -94,6 +137,7 @@ export function getTemplateArrayData(templateText, templateName, title, ignoreNa
     }
     currIndex = nextIndex;
   }
+
   return data;
 }
 
@@ -101,8 +145,13 @@ export function templateFromArrayData(data, templateName) {
   return `{{${templateName}|${data.join('|')}}}`;
 }
 
-export function getTemplateData(templateText, templateName, title) {
-  const templateContent = templateText.replace(`{{${templateName}`, '').replace(/}}$/, '');
+export function getTemplateData(
+  templateText,
+  templateName,
+  title,
+) {
+  const templateStartRegex = new RegExp(`^{{\\s*${RegExp.escape(templateName)}`);
+  const templateContent = templateText.replace(templateStartRegex, '').replace(/}}$/, '');
   if (!templateContent.match(/^\s*\|/)) {
     return {};
   }
@@ -133,6 +182,7 @@ export function getTemplateData(templateText, templateName, title) {
     }
     currIndex = nextIndex;
   }
+
   return {
     arrayData,
     keyValueData,

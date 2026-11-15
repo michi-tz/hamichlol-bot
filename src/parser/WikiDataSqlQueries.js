@@ -1,5 +1,8 @@
-// חלק מהקוד בתיקיה זו נלקח או הותאם ממאגר הקוד הפתוח: https://github.com/EladHeller/wiki-bot
-// ראה קובץ CREDITS.md לפרטים נוספים
+// LOCAL FILE - not synced from upstream.
+// Wikidata SPARQL query helpers, adapted from an older version of
+// bot/wiki/WikiDataSqlQueries.ts in https://github.com/EladHeller/wiki-bot (ISC).
+// That file is empty upstream now, so `npm run sync:parser` does not touch
+// this one (it is listed under "localFiles" in upstream.json). See CREDITS.md.
 function companiesWithMayaId() {
   return `
 SELECT ?entityId ?mayaId ?articleName WHERE {
