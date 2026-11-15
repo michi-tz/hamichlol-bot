@@ -63,7 +63,7 @@ async function processWikiContent(wikiContent, options) {
   let text = wikiContent.text;
   if (bot) {
     const { default: createTionaryPage } = await import("./bot_pages.js");
-    text = createTionaryPage(wikiContent, bot);
+    text = await createTionaryPage(wikiContent, bot);
   }
   const replacementResult = await applyReplacements(text);
   text = replacementResult.text;

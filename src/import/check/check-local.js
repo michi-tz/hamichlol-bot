@@ -12,6 +12,7 @@ export async function checkLocalEdits(title) {
   const arrCommentPhotos = ["הסרת תמונה", "החלפת תמונה"];
   const { [title]: page } = await request.queryPages({
     titles: title,
+    useIdsOrTitles: "titles",
     options: {
       prop: "categories|revisions|templates",
       clcategories:
@@ -20,7 +21,9 @@ export async function checkLocalEdits(title) {
       tltemplates: "תבנית:נערך במכלול",
     },
   });
-  if (!page) {
+  // A title that does not exist locally comes back as `{ title, missing: "" }`
+  // (and without `revisions`), so treat it the same as no result at all.
+  if (!page || "missing" in page || !Array.isArray(page.revisions)) {
     return false;
   }
   if (page.tltemplates > 0 || page.clcategories > 0) {
