@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 // The real WikiClient hits the network (via node-fetch) and writes to the
 // shared winston logger. Both are mocked so these tests stay fast,
@@ -123,5 +123,84 @@ describe('Client.edit error handling', () => {
     expect(result.query.tokens.csrftoken).toBe('refreshed-token');
     expect(client.token).toEqual({ csrftoken: 'refreshed-token' });
     expect(logger.error).not.toHaveBeenCalledWith('Failed to validate token');
+  });
+});
+
+describe('Client.wikiGet automatic login', () => {
+  const CREDENTIAL_ENV = ['MC_USER', 'MC_PASSWORD', 'MC_OAUTH_TOKEN'];
+  let savedEnv;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    savedEnv = Object.fromEntries(CREDENTIAL_ENV.map((k) => [k, process.env[k]]));
+    fetch.mockResolvedValue({
+      ok: true,
+      headers: { raw: () => ({}), get: () => null },
+      json: async () => ({ query: {} }),
+    });
+  });
+
+  afterEach(() => {
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  function clearCredentialEnv() {
+    for (const key of CREDENTIAL_ENV) delete process.env[key];
+  }
+
+  test('a client without any credentials does a GET without logging in', async () => {
+    clearCredentialEnv();
+    const client = new Client({ wikiUrl: 'https://example.org/w/api.php' });
+    const loginSpy = jest.spyOn(client, 'login');
+
+    await client.wikiGet({ action: 'query' });
+
+    expect(client.withLogedIn).toBe(true);
+    expect(loginSpy).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][1].method).not.toBe('POST'); // GET sends no method
+  });
+
+  test('an explicit login() without credentials still throws', async () => {
+    clearCredentialEnv();
+    const client = new Client({ wikiUrl: 'https://example.org/w/api.php' });
+
+    await expect(client.login()).rejects.toThrow('you dinwt pass your user name or your password');
+  });
+
+  test('a client with credentials still logs in automatically on the first GET', async () => {
+    const client = new Client({
+      wikiUrl: 'https://example.org/w/api.php',
+      userName: 'bot@test',
+      password: 'secret',
+    });
+    const loginSpy = jest.spyOn(client, 'login').mockImplementation(async () => {
+      client.isLoggedIn = true;
+      return true;
+    });
+
+    await client.wikiGet({ action: 'query' });
+    await client.wikiGet({ action: 'query' });
+
+    expect(loginSpy).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test('a client with credentials but withLogedIn: false does not log in on GET', async () => {
+    const client = new Client({
+      wikiUrl: 'https://example.org/w/api.php',
+      userName: 'bot@test',
+      password: 'secret',
+      withLogedIn: false,
+    });
+    const loginSpy = jest.spyOn(client, 'login');
+
+    await client.wikiGet({ action: 'query' });
+
+    expect(loginSpy).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

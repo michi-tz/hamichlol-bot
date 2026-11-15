@@ -309,8 +309,12 @@ export class Requests extends WikiClient {
 
 let instance = new Map();
 
+const HAMICHLOL_API_URL = "https://www.hamichlol.org.il/w/api.php";
+
 /**
  * Get or create an instance of Requests.
+ * Instances for any URL other than the Hamichlol API are created with
+ * automatic login turned off (`withLogedIn: false`).
  *
  * @param {string} [nameInstance="hamichlol"] - The name of the instance.
  * @param {string} wikiUrl - The URL to use for the requests.
@@ -320,13 +324,21 @@ export function getRequestsInstance(nameInstance = "hamichlol", wikiUrl) {
   wikiUrl = wikiUrl
     ? wikiUrl
     : nameInstance === "hamichlol"
-    ? "https://www.hamichlol.org.il/w/api.php"
+    ? HAMICHLOL_API_URL
     : process.platform === "win32"
     ? "https://www.hamichlol.org.il/import/get_wik1i.php"
     : "https://he.wikipedia.org/w/api.php";
   if (!instance.has(nameInstance)) {
     logger.info("creating instance: " + nameInstance);
-    instance.set(nameInstance, new Requests(wikiUrl));
+    // Only the Hamichlol API logs in automatically; every other wiki (e.g.
+    // Wikipedia) is read anonymously so the bot's credentials are never sent
+    // there. Callers can still opt in via `instance.withLogedIn = true`.
+    instance.set(
+      nameInstance,
+      wikiUrl === HAMICHLOL_API_URL
+        ? new Requests(wikiUrl)
+        : new Requests({ wikiUrl, withLogedIn: false })
+    );
   }
   return instance.get(nameInstance);
 }
