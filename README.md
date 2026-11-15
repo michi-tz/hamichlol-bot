@@ -12,7 +12,6 @@ A bot for managing and updating content on the Hamichlol website.
 - `parser/` - Wiki content parsers
 - `requests/` - HTTP clients and server requests
 - `scripts/` - General scripts and utilities
-- `scheduled/` - Scheduled Scripts
 
 ### `tests/` - Unit Tests
 
@@ -20,13 +19,13 @@ A bot for managing and updating content on the Hamichlol website.
 
 ```bash
 # Install packages
-pnpm install
+npm install
 
 # Run tests
-pnpm test
+npm test
 
 # Code linting
-pnpm run lint:test
+npm run lint:test
 ```
 
 ## Running the Tests (Jest)
@@ -53,7 +52,6 @@ Tests are isolated from the network and disk: HTTP calls (`node-fetch`) and the 
 - Template processing and updating
 - Category and image management
 - Advanced logging system
-- **Scheduled task system** 🆕
 
 ## Authentication & Configuration 🆕
 
