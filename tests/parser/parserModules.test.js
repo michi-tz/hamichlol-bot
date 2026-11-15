@@ -1,5 +1,4 @@
 import { describe, test, expect } from '@jest/globals';
-import * as utilities from '../../src/parser/utilities.js';
 import * as templateParser from '../../src/parser/newTemplateParser.js';
 import * as wikiDataSqlQueries from '../../src/parser/WikiDataSqlQueries.js';
 import * as wikiLinkParser from '../../src/parser/wikiLinkParser.js';
@@ -14,13 +13,6 @@ import { regExpEscape } from '../../src/parser/regexpEscapePolyfill.js';
 
 describe('parser modules load as ES modules with their expected exports', () => {
   test.each([
-    ['utilities.js', utilities, [
-      'currencyName', 'prettyNumericValue', 'getLocalDate', 'getLocalTimeAndDate',
-      'getFullYear', 'parseLocalDate', 'promiseSequence', 'objectToFormData',
-      'objectToQueryString', 'asyncGeneratorMapWithSequence', 'encodeWikiUrl',
-      'hebrewGimetriya', 'fetchUrlLikeBrowser', 'convertContentToWikiPage',
-      'contentFromPage', 'firstPageOf', 'getUserAgent',
-    ]],
     ['newTemplateParser.js', templateParser, [
       'findTemplates', 'findTemplate', 'getTemplateKeyValueData', 'templateFromKeyValueData',
       'getTemplateArrayData', 'templateFromArrayData', 'getTemplateData', 'templateFromTemplateData',
@@ -78,56 +70,6 @@ describe('RegExp.escape polyfill', () => {
     const native = Object.getOwnPropertyDescriptor(RegExp, 'escape').value;
     const input = '1a.b-c d e﻿"\'`<>#&!%:;@~,=😀\udc00';
     expect(native(input)).toBe(regExpEscape(input));
-  });
-});
-
-describe('utilities', () => {
-  const {
-    prettyNumericValue, getLocalDate, getFullYear, parseLocalDate,
-    encodeWikiUrl, hebrewGimetriya, objectToQueryString,
-  } = utilities;
-
-  test('prettyNumericValue formats values given in thousands', () => {
-    expect(prettyNumericValue('0')).toBe('0 [[שקל חדש|ש"ח]]');
-    expect(prettyNumericValue('123')).toBe('123 [[1000 (מספר)|אלף]] [[שקל חדש|ש"ח]]');
-    expect(prettyNumericValue('1234')).toBe('1.23 [[מיליון]] [[שקל חדש|ש"ח]]');
-    expect(prettyNumericValue('1234567', 'USD')).toBe('1.23 [[מיליארד]] [[דולר אמריקאי|דולר]]');
-  });
-
-  test('getFullYear expands two-digit years', () => {
-    expect(getFullYear('99')).toBe('1999');
-    expect(getFullYear('05')).toBe('2005');
-    expect(getFullYear('2010')).toBe('2010');
-  });
-
-  test('getLocalDate returns an empty string for invalid dates', () => {
-    expect(getLocalDate('not a date')).toBe('');
-  });
-
-  test('parseLocalDate parses a Hebrew local date', () => {
-    expect(parseLocalDate('5 בינואר 2020').toISOString()).toBe('2020-01-05T00:00:00.000Z');
-    expect(parseLocalDate('17 בספטמבר 2021').toISOString()).toBe('2021-09-17T00:00:00.000Z');
-  });
-
-  test('parseLocalDate rejects incomplete input', () => {
-    expect(() => parseLocalDate('5 בינואר')).toThrow('Invalid date');
-    expect(Number.isNaN(+parseLocalDate('5 בינואר', false))).toBe(true);
-  });
-
-  test('encodeWikiUrl encodes titles like MediaWiki URLs', () => {
-    expect(encodeWikiUrl("O'Neil test")).toBe('O%27Neil_test');
-  });
-
-  test('hebrewGimetriya converts numbers to Hebrew numerals', () => {
-    expect(hebrewGimetriya(1)).toBe('א');
-    expect(hebrewGimetriya(15)).toBe('טו');
-    expect(hebrewGimetriya(16)).toBe('טז');
-    expect(hebrewGimetriya(499)).toBe('תצט');
-    expect(() => hebrewGimetriya(500)).toThrow();
-  });
-
-  test('objectToQueryString encodes values', () => {
-    expect(objectToQueryString({ a: 'x y', b: 'א' })).toBe('a=x%20y&b=%D7%90');
   });
 });
 

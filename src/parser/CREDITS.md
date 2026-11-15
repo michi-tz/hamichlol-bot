@@ -45,7 +45,6 @@ original code remains with its authors.
 | `wikiLinkParser.js` | `bot/wiki/wikiLinkParser.ts` |
 | `wikiTableParser.js` | `bot/wiki/wikiTableParser.ts` |
 | `redirectParser.js` | `bot/wiki/redirectParser.ts` |
-| `utilities.js` | `bot/utilities.ts` (self-contained once types are erased; none of the parser files import it) |
 
 ### Local files (maintained here; header `// LOCAL FILE`)
 

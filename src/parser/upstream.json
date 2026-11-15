@@ -9,8 +9,7 @@
     "bot/wiki/paragraphParser.ts": "src/parser/paragraphParser.js",
     "bot/wiki/wikiLinkParser.ts": "src/parser/wikiLinkParser.js",
     "bot/wiki/wikiTableParser.ts": "src/parser/wikiTableParser.js",
-    "bot/wiki/redirectParser.ts": "src/parser/redirectParser.js",
-    "bot/utilities.ts": "src/parser/utilities.js"
+    "bot/wiki/redirectParser.ts": "src/parser/redirectParser.js"
   },
   "localFiles": [
     "src/parser/WikiDataSqlQueries.js",
