@@ -1,7 +1,7 @@
 {
   "$comment": "Pin and file list for `npm run sync:parser` (scripts/sync-parser.mjs). Files under \"files\" are GENERATED from upstream; files under \"localFiles\" are maintained here. See src/parser/CREDITS.md.",
   "repo": "https://github.com/EladHeller/wiki-bot.git",
-  "commit": "1f97761c8dcacb1457c51de976f91a1b14d50afb",
+  "commit": "dc72603796c92f21eafb4c1242c8ad021c07ee78",
   "license": "ISC",
   "files": {
     "bot/wiki/WikiParser.ts": "src/parser/WikiParser.js",
