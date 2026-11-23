@@ -1,5 +1,3 @@
-//import babelParser from "@babel/eslint-parser";
-//import babelPluginSyntaxImportAssertions from "@babel/plugin-syntax-import-assertions";
 import globals from "globals";
 
 export default {
@@ -8,14 +6,7 @@ export default {
     sourceType: "module",
     globals: {
       ...globals.node,
-    },/*
-    parser: babelParser,
-    parserOptions: {
-      requireConfigFile: false,
-      babelOptions: {
-        plugins: [babelPluginSyntaxImportAssertions],
-      },
-    },*/
+    },
   },
   ignores: [
     "node_modules/*",
@@ -23,5 +14,4 @@ export default {
     "**/check-wiki-event",
     "**/import/*",
   ],
-  //plugins: { babelPluginSyntaxImportAssertions },
 };

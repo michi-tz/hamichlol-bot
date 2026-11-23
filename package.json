@@ -19,9 +19,7 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "@babel/core": "^8.1.2",
-    "@babel/preset-env": "^8.0.7",
-    "babel-jest": "^30.5.2",
+    "@jest/globals": "^30.5.2",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
     "jest": "^30.5.2",
