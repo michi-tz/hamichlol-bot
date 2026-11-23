@@ -1,6 +1,6 @@
 // GENERATED FILE - DO NOT EDIT.
 // Run `npm run sync:parser` to regenerate it; local changes will be overwritten.
-// Generated from https://github.com/EladHeller/wiki-bot@1f97761c8dcacb1457c51de976f91a1b14d50afb
+// Generated from https://github.com/EladHeller/wiki-bot@c22bbf1ebbf19aabf30fe110491d926499b8d760
 // Original path: bot/wiki/newTemplateParser.ts
 // Source: wiki-bot (github.com/EladHeller), ISC license. See src/parser/CREDITS.md.
 
